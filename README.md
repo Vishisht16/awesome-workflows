@@ -54,7 +54,7 @@ awesome-workflows/
 ├── README.md                          ← You are here
 ├── github-actions/
 │   └── repo-management/
-│       ├── README.md                  ← Full index & docs for 16 workflows
+│       ├── README.md                  ← Full index & docs for 30+ workflows
 │       ├── stale-issues.yml
 │       ├── auto-label-issues.yml
 │       ├── pr-issue-check.yml
