@@ -1,0 +1,103 @@
+# ============================================================================
+# Workflow: Auto-Label PRs by Path
+# ============================================================================
+# Applies labels to PRs based on which files/directories were modified.
+# Uses a label-to-glob mapping defined directly in this file.
+#
+# Manual dispatch: Reviews ALL open PRs and applies missing path labels.
+#
+# Portability: 🔧 Configurable
+#   - Edit the PATH_LABELS mapping to match your project structure.
+# ============================================================================
+
+name: Auto-Label PRs by Path
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch: # Manual trigger — reviews all open PRs
+
+jobs:
+  path-label:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Apply Labels Based on Changed Paths
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // ── Path-to-Label Mapping ─────────────────────────────────
+            // Customize for your repository structure.
+            // Uses simple prefix matching (starts-with).
+            const PATH_LABELS = {
+              "documentation": ["docs/", "README", "CONTRIBUTING", "CHANGELOG", ".md"],
+              "frontend": ["src/web/", "src/ui/", "src/components/", "public/"],
+              "backend": ["src/api/", "src/server/", "src/services/"],
+              "tests": ["tests/", "test/", "__tests__/", "spec/"],
+              "ci/cd": [".github/", "Dockerfile", "docker-compose", ".gitlab-ci"],
+              "config": [".env", "config/", "*.config.*", "tsconfig", "package.json"],
+              "dependencies": ["package-lock.json", "yarn.lock", "requirements.txt", "Pipfile.lock", "go.sum"],
+            };
+
+            async function labelPR(pr) {
+              // Fetch the list of changed files
+              const files = await github.paginate(
+                github.rest.pulls.listFiles,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  per_page: 100
+                }
+              );
+
+              const changedPaths = files.map(f => f.filename);
+              const existingLabels = pr.labels.map(l => l.name.toLowerCase());
+              const labelsToAdd = [];
+
+              for (const [label, patterns] of Object.entries(PATH_LABELS)) {
+                if (existingLabels.includes(label.toLowerCase())) continue;
+
+                const matched = changedPaths.some(filePath =>
+                  patterns.some(pattern => filePath.toLowerCase().includes(pattern.toLowerCase()))
+                );
+
+                if (matched) labelsToAdd.push(label);
+              }
+
+              if (labelsToAdd.length === 0) {
+                console.log(`PR #${pr.number}: No path-based labels to add.`);
+                return;
+              }
+
+              console.log(`PR #${pr.number}: Adding labels: ${labelsToAdd.join(", ")}`);
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: labelsToAdd
+              });
+            }
+
+            // ── Dispatch mode ─────────────────────────────────────────
+            if (context.eventName === "workflow_dispatch") {
+              console.log("Manual dispatch: reviewing all open PRs...");
+              const prs = await github.paginate(
+                github.rest.pulls.list,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: "open",
+                  per_page: 100
+                }
+              );
+              console.log(`Found ${prs.length} open PR(s).`);
+              for (const pr of prs) {
+                await labelPR(pr);
+              }
+              return;
+            }
+
+            // ── Event mode ────────────────────────────────────────────
+            await labelPR(context.payload.pull_request);

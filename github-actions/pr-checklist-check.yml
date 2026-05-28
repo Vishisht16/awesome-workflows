@@ -1,0 +1,108 @@
+# ============================================================================
+# Workflow: PR Description Checklist Validator
+# ============================================================================
+# Ensures all checklist items (- [ ]) in the PR body are checked before
+# allowing the PR to merge. Useful when using a PR template with checklists.
+#
+# Manual dispatch: Reviews ALL open PRs for unchecked items.
+#
+# Portability: ✅ Drop-in
+# ============================================================================
+
+name: PR Checklist Validator
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+  workflow_dispatch: # Manual trigger — reviews all open PRs
+
+jobs:
+  check-checklist:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Validate PR Checklist
+        uses: actions/github-script@v7
+        with:
+          script: |
+            async function checkPR(pr) {
+              const body = pr.body || "";
+
+              // Find all checklist items
+              const unchecked = (body.match(/- \[ \]/g) || []).length;
+              const checked = (body.match(/- \[x\]/gi) || []).length;
+              const total = unchecked + checked;
+
+              // No checklist found — pass
+              if (total === 0) {
+                console.log(`PR #${pr.number}: No checklist items found. Passing.`);
+                return true;
+              }
+
+              // All checked — pass
+              if (unchecked === 0) {
+                console.log(`PR #${pr.number}: All ${total} checklist items checked. ✅`);
+                return true;
+              }
+
+              // Some unchecked — fail
+              console.log(`PR #${pr.number}: ${unchecked}/${total} items unchecked. ❌`);
+
+              // Check if we already commented to avoid duplicates
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                per_page: 10
+              });
+
+              const alreadyCommented = comments.data.some(
+                c => c.body.includes("unchecked checklist items")
+              );
+
+              if (!alreadyCommented) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: [
+                    `⚠️ This PR has **${unchecked} unchecked checklist items** out of ${total} total.`,
+                    ``,
+                    `Please complete all checklist items in the PR description before this can be merged.`,
+                    ``,
+                    `*This check will pass automatically once all items are checked.*`
+                  ].join("\n")
+                });
+              }
+
+              core.setFailed(`${unchecked}/${total} checklist items are unchecked.`);
+              return false;
+            }
+
+            // ── Dispatch mode ─────────────────────────────────────────
+            if (context.eventName === "workflow_dispatch") {
+              console.log("Manual dispatch: reviewing all open PRs...");
+              const prs = await github.paginate(
+                github.rest.pulls.list,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: "open",
+                  per_page: 100
+                }
+              );
+              console.log(`Found ${prs.length} open PR(s).`);
+              let failures = 0;
+              for (const pr of prs) {
+                const passed = await checkPR(pr);
+                if (!passed) failures++;
+              }
+              if (failures > 0) {
+                console.log(`${failures} PR(s) have incomplete checklists.`);
+              }
+              return;
+            }
+
+            // ── Event mode ────────────────────────────────────────────
+            await checkPR(context.payload.pull_request);

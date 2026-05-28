@@ -4,6 +4,8 @@
 # Scans new/edited issue titles and bodies for keywords and automatically
 # applies matching labels. Saves maintainers from manual triage.
 #
+# Manual dispatch: Reviews ALL open issues and applies missing labels.
+#
 # Portability: 🔧 Configurable
 #   - Edit the `LABEL_RULES` object to match your repository's label taxonomy.
 #   - Each rule maps a label name to an array of trigger keywords.
@@ -14,6 +16,7 @@ name: Auto-Label Issues by Keywords
 on:
   issues:
     types: [opened, edited]
+  workflow_dispatch: # Manual trigger — reviews all open issues
 
 jobs:
   auto-label:
@@ -25,11 +28,6 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const issue = context.payload.issue;
-            const title = (issue.title || "").toLowerCase();
-            const body = (issue.body || "").toLowerCase();
-            const text = `${title} ${body}`;
-
             // ── Keyword-to-Label Mapping ──────────────────────────────
             // Customize this object for your repository.
             // Keys are label names, values are arrays of trigger keywords.
@@ -44,34 +42,54 @@ jobs:
               "dependencies": ["dependency", "dependencies", "upgrade", "update", "version", "outdated", "deprecated"],
             };
 
-            // ── Label Matching Logic ──────────────────────────────────
-            const labelsToAdd = [];
-            const existingLabels = issue.labels.map(l => l.name.toLowerCase());
+            // ── Core labeling function ────────────────────────────────
+            async function labelIssue(issue) {
+              const title = (issue.title || "").toLowerCase();
+              const body = (issue.body || "").toLowerCase();
+              const text = `${title} ${body}`;
 
-            for (const [label, keywords] of Object.entries(LABEL_RULES)) {
-              // Skip if the issue already has this label
-              if (existingLabels.includes(label.toLowerCase())) continue;
+              const labelsToAdd = [];
+              const existingLabels = issue.labels.map(l => l.name.toLowerCase());
 
-              // Check if any keyword is found in the issue text
-              const matched = keywords.some(keyword => text.includes(keyword));
-              if (matched) {
-                labelsToAdd.push(label);
+              for (const [label, keywords] of Object.entries(LABEL_RULES)) {
+                if (existingLabels.includes(label.toLowerCase())) continue;
+                const matched = keywords.some(keyword => text.includes(keyword));
+                if (matched) labelsToAdd.push(label);
               }
+
+              if (labelsToAdd.length === 0) {
+                console.log(`Issue #${issue.number}: No keyword matches.`);
+                return;
+              }
+
+              console.log(`Issue #${issue.number}: Adding labels: ${labelsToAdd.join(", ")}`);
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labelsToAdd
+              });
             }
 
-            if (labelsToAdd.length === 0) {
-              console.log("No keyword matches found. No labels to add.");
+            // ── Dispatch mode: process all open issues ────────────────
+            if (context.eventName === "workflow_dispatch") {
+              console.log("Manual dispatch: reviewing all open issues...");
+              const issues = await github.paginate(
+                github.rest.issues.listForRepo,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: "open",
+                  per_page: 100
+                }
+              );
+              const realIssues = issues.filter(i => !i.pull_request);
+              console.log(`Found ${realIssues.length} open issue(s) to review.`);
+              for (const issue of realIssues) {
+                await labelIssue(issue);
+              }
               return;
             }
 
-            console.log(`Adding labels: ${labelsToAdd.join(", ")}`);
-
-            // ── Apply Labels ──────────────────────────────────────────
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              labels: labelsToAdd
-            });
-
-            console.log(`Successfully labeled issue #${issue.number}.`);
+            // ── Event mode: process the single triggering issue ───────
+            await labelIssue(context.payload.issue);

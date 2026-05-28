@@ -14,6 +14,13 @@ A curated collection of **GitHub Action workflows** for repository management, t
 3. Copy the `.yml` file into your repository's `.github/workflows/` directory.
 4. Commit, push, and you're done.
 
+### 🔄 Manual Dispatch
+
+Most workflows support **manual triggering** via `workflow_dispatch`. When run manually from the Actions tab, they review **all open issues/PRs** and apply their logic retroactively — useful for:
+- First-time setup on an existing repo with a backlog
+- Re-running checks after changing configuration values
+- Periodic manual audits
+
 ---
 
 ## 📑 Workflow Index
@@ -87,8 +94,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 1. Stale Issue & PR Closer
 > Uses [`actions/stale`](https://github.com/actions/stale) to automatically label and close inactive issues and PRs.
 
-- **Trigger:** Scheduled (daily cron)
+- **Trigger:** Scheduled (daily cron) + `workflow_dispatch`
 - **What it does:** Marks issues/PRs as `stale` after 60 days of inactivity, closes them after 14 more days.
+- **Manual dispatch:** Runs the same stale-check logic immediately on demand.
 - **Portability:** 🔧 Customize `days-before-stale`, `days-before-close`, messages, and exempt labels.
 
 ---
@@ -96,8 +104,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 2. Auto-Label Issues by Keywords
 > Scans issue titles and body content for configurable keywords and applies matching labels.
 
-- **Trigger:** `issues: [opened, edited]`
+- **Trigger:** `issues: [opened, edited]` + `workflow_dispatch`
 - **What it does:** If the title/body contains "bug" or "error" → applies `bug` label; "feature" or "enhancement" → `enhancement`, etc.
+- **Manual dispatch:** Reviews all open issues and applies any missing labels.
 - **Portability:** 🔧 Edit the keyword-to-label mapping to match your label taxonomy.
 
 ---
@@ -105,8 +114,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 3. Issue Template Checker
 > Validates that new issues contain meaningful content from the issue template.
 
-- **Trigger:** `issues: [opened]`
+- **Trigger:** `issues: [opened]` + `workflow_dispatch`
 - **What it does:** Checks if the issue body meets a minimum length and contains expected template sections. Comments and applies a `needs-more-info` label if not.
+- **Manual dispatch:** Reviews all open issues for template compliance. Skips already-labeled issues.
 - **Portability:** 🔧 Adjust minimum body length and required section headers.
 
 ---
@@ -114,8 +124,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 4. Needs Info Timeout
 > Auto-closes issues that haven't received a response after being marked `needs-info`.
 
-- **Trigger:** Scheduled (daily cron)
+- **Trigger:** Scheduled (daily cron) + `workflow_dispatch`
 - **What it does:** Finds issues labeled `needs-info` with no author reply for 14 days, posts a reminder, then closes.
+- **Manual dispatch:** Runs the same timeout check immediately on demand.
 - **Portability:** 🔧 Adjust the label name and timeout period.
 
 ---
@@ -123,8 +134,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 5. Lock Closed Threads
 > Uses [`dessant/lock-threads`](https://github.com/dessant/lock-threads) to lock old closed issues.
 
-- **Trigger:** Scheduled (daily cron)
+- **Trigger:** Scheduled (daily cron) + `workflow_dispatch`
 - **What it does:** Locks issues/PRs that have been closed for 30+ days to prevent necro-bumping.
+- **Manual dispatch:** Runs the same lock check immediately on demand.
 - **Portability:** 🔧 Adjust `issue-inactive-days` and lock reason message.
 
 ---
@@ -132,8 +144,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 6. Duplicate Issue Detector
 > Uses word-overlap (Jaccard) similarity to detect potential duplicate issues. No external APIs required.
 
-- **Trigger:** `issues: [opened]`
+- **Trigger:** `issues: [opened]` + `workflow_dispatch`
 - **What it does:** Tokenizes and compares new issues against all open issues using Jaccard similarity with stop-word removal. Comments with links to potential duplicates and labels them `possible-duplicate`.
+- **Manual dispatch:** Cross-compares all open issues against each other. Skips already-flagged issues.
 - **Portability:** 🔧 Adjust `SIMILARITY_THRESHOLD` (0.0–1.0) and `MAX_RESULTS`. For better semantic matching, swap in an AI-based approach.
 
 ---
@@ -141,8 +154,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 7. Auto-Close Spam Issues
 > Detects and closes obviously spam or empty issues.
 
-- **Trigger:** `issues: [opened]`
+- **Trigger:** `issues: [opened]` + `workflow_dispatch`
 - **What it does:** Checks if the issue body is extremely short (< 10 chars), contains known spam patterns, or has no body at all. Applies a `spam` label and closes.
+- **Manual dispatch:** Reviews all open issues for spam. Skips already-labeled spam issues.
 - **Portability:** ✅ Works as-is. Can optionally tune spam patterns.
 
 ---
@@ -161,8 +175,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 9. PR Issue Assignment Check
 > Ensures PRs reference an issue and the author is assigned to it.
 
-- **Trigger:** `pull_request: [opened, edited, reopened]`
+- **Trigger:** `pull_request: [opened, edited, reopened]` + `workflow_dispatch`
 - **What it does:** Parses the PR body for issue references (`#123`), verifies they exist, and checks if the PR author is assigned. Closes non-compliant PRs with a comment.
+- **Manual dispatch:** Reviews all open PRs for issue-assignment compliance.
 - **Portability:** ✅ Works as-is for any repository.
 
 ---
@@ -170,8 +185,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 10. PR Size Labeler
 > Automatically labels PRs by the number of lines changed.
 
-- **Trigger:** `pull_request: [opened, synchronize]`
-- **What it does:** Adds a label like `size/XS` (< 10 lines), `size/S` (< 50), `size/M` (< 200), `size/L` (< 500), `size/XL` (< 1000), or `size/XXL` (1000+).
+- **Trigger:** `pull_request: [opened, synchronize]` + `workflow_dispatch`
+- **What it does:** Adds a label like `size/XS` (< 10 lines), `size/S` (< 50), `size/M` (< 200), `size/L` (< 500), `size/XL` (< 1000), or `size/XXL` (1000+). Updates labels when PR size changes.
+- **Manual dispatch:** Reviews all open PRs and applies/updates size labels.
 - **Portability:** ✅ Works as-is. Change thresholds if desired.
 
 ---
@@ -179,8 +195,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 11. PR Title Linter
 > Enforces [Conventional Commits](https://www.conventionalcommits.org/) format on PR titles.
 
-- **Trigger:** `pull_request: [opened, edited, reopened]`
-- **What it does:** Validates that the PR title matches `type(scope): description` format. Fails the check if it doesn't.
+- **Trigger:** `pull_request: [opened, edited, reopened]` + `workflow_dispatch`
+- **What it does:** Validates that the PR title matches `type(scope): description` format. Fails the check if it doesn't. Avoids duplicate comments.
+- **Manual dispatch:** Reviews all open PRs for title compliance. Reports total failures.
 - **Portability:** 🔧 Configure allowed types (`feat`, `fix`, `docs`, `chore`, etc.) and whether scope is required.
 
 ---
@@ -188,8 +205,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 12. Auto-Assign Reviewers
 > Automatically assigns reviewers to new PRs.
 
-- **Trigger:** `pull_request: [opened, ready_for_review]`
-- **What it does:** Picks reviewers from a configured list using round-robin or random selection. Skips the PR author.
+- **Trigger:** `pull_request: [opened, ready_for_review]` + `workflow_dispatch`
+- **What it does:** Picks reviewers from a configured list using round-robin selection. Skips the PR author and draft PRs.
+- **Manual dispatch:** Assigns reviewers to all open PRs that are missing reviewers.
 - **Portability:** ⚙️ Requires a list of reviewer usernames and possibly a PAT for team-based assignment.
 
 ---
@@ -197,8 +215,9 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 13. WIP / Draft Enforcer
 > Prevents accidental merging of work-in-progress PRs.
 
-- **Trigger:** `pull_request: [opened, edited, reopened, synchronize]`
-- **What it does:** Fails the CI check if the PR title starts with `[WIP]`, `WIP:`, or `Draft:`.
+- **Trigger:** `pull_request: [opened, edited, reopened, synchronize]` + `workflow_dispatch`
+- **What it does:** Fails the CI check if the PR title starts with `[WIP]`, `WIP:`, or `Draft:`. Also detects the 🚧 emoji.
+- **Manual dispatch:** Lists all open WIP PRs (informational, does not fail).
 - **Portability:** ✅ Works as-is.
 
 ---
@@ -206,18 +225,20 @@ A curated collection of **GitHub Action workflows** for repository management, t
 #### 14. PR Description Checklist Validator
 > Ensures all checkboxes in the PR template are checked.
 
-- **Trigger:** `pull_request: [opened, edited, reopened]`
-- **What it does:** Parses the PR body for unchecked boxes (`- [ ]`). Fails the check if any remain unchecked, with a helpful comment listing what's missing.
+- **Trigger:** `pull_request: [opened, edited, reopened]` + `workflow_dispatch`
+- **What it does:** Parses the PR body for unchecked boxes (`- [ ]`). Fails the check if any remain unchecked, with a helpful comment listing what's missing. Avoids duplicate comments.
+- **Manual dispatch:** Reviews all open PRs and reports which have incomplete checklists.
 - **Portability:** ✅ Works for any repo that uses a PR template with checklists.
 
 ---
 
 #### 15. Auto-Label PRs by Path
-> Uses [`actions/labeler`](https://github.com/actions/labeler) to label PRs based on changed file paths.
+> Labels PRs based on which files/directories were modified using an inline path-to-label mapping.
 
-- **Trigger:** `pull_request: [opened, synchronize]`
-- **What it does:** Applies labels based on file paths (e.g., changes to `docs/` → `documentation`, changes to `src/api/` → `backend`).
-- **Portability:** 🔧 Requires a `.github/labeler.yml` config mapping globs to labels.
+- **Trigger:** `pull_request: [opened, synchronize]` + `workflow_dispatch`
+- **What it does:** Applies labels based on file paths (e.g., changes to `docs/` → `documentation`, changes to `src/api/` → `backend`). Config is inline — no separate file needed.
+- **Manual dispatch:** Reviews all open PRs and applies any missing path-based labels.
+- **Portability:** 🔧 Edit the `PATH_LABELS` mapping in the workflow to match your project structure.
 
 ---
 

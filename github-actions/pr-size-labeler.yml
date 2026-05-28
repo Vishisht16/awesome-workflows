@@ -1,0 +1,100 @@
+# ============================================================================
+# Workflow: PR Size Labeler
+# ============================================================================
+# Automatically labels PRs based on total lines changed.
+# Helps reviewers pick PRs based on available time.
+#
+# Manual dispatch: Reviews ALL open PRs and applies/updates size labels.
+#
+# Portability: ✅ Drop-in
+# ============================================================================
+
+name: PR Size Labeler
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch: # Manual trigger — reviews all open PRs
+
+jobs:
+  size-label:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Apply Size Label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // ── Size Thresholds ───────────────────────────────────────
+            const SIZE_LABELS = [
+              { label: "size/XS",  max: 10   },
+              { label: "size/S",   max: 50   },
+              { label: "size/M",   max: 200  },
+              { label: "size/L",   max: 500  },
+              { label: "size/XL",  max: 1000 },
+              { label: "size/XXL", max: Infinity }
+            ];
+
+            const ALL_SIZE_LABELS = SIZE_LABELS.map(s => s.label);
+
+            async function labelPR(pr) {
+              // Fetch the full PR details to get additions/deletions
+              const { data: fullPR } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number
+              });
+
+              const totalChanges = fullPR.additions + fullPR.deletions;
+              const sizeLabel = SIZE_LABELS.find(s => totalChanges < s.max).label;
+
+              // Remove any existing size labels that don't match
+              const existingLabels = pr.labels.map(l => l.name);
+              const wrongLabels = existingLabels.filter(
+                l => ALL_SIZE_LABELS.includes(l) && l !== sizeLabel
+              );
+
+              for (const label of wrongLabels) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  name: label
+                });
+              }
+
+              // Add the correct label if not already present
+              if (!existingLabels.includes(sizeLabel)) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  labels: [sizeLabel]
+                });
+              }
+
+              console.log(`PR #${pr.number}: ${totalChanges} lines changed → ${sizeLabel}`);
+            }
+
+            // ── Dispatch mode ─────────────────────────────────────────
+            if (context.eventName === "workflow_dispatch") {
+              console.log("Manual dispatch: reviewing all open PRs...");
+              const prs = await github.paginate(
+                github.rest.pulls.list,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: "open",
+                  per_page: 100
+                }
+              );
+              console.log(`Found ${prs.length} open PR(s).`);
+              for (const pr of prs) {
+                await labelPR(pr);
+              }
+              return;
+            }
+
+            // ── Event mode ────────────────────────────────────────────
+            await labelPR(context.payload.pull_request);

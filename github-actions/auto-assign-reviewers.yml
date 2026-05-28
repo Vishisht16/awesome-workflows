@@ -1,0 +1,108 @@
+# ============================================================================
+# Workflow: Auto-Assign Reviewers
+# ============================================================================
+# Automatically assigns reviewers to new PRs using round-robin selection
+# from a configured list. Skips the PR author.
+#
+# Manual dispatch: Assigns reviewers to ALL open PRs missing reviewers.
+#
+# Portability: ⚙️ Needs Setup
+#   - Edit REVIEWERS list with your team's GitHub usernames.
+#   - For team-based assignment, use a PAT with read:org scope.
+# ============================================================================
+
+name: Auto-Assign Reviewers
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+  workflow_dispatch: # Manual trigger — reviews all open PRs
+
+jobs:
+  assign-reviewers:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Assign Reviewers to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // ── Configuration ─────────────────────────────────────────
+            // Add your team members' GitHub usernames here
+            const REVIEWERS = [
+              "maintainer1",
+              "maintainer2",
+              "maintainer3",
+            ];
+            // Number of reviewers to assign per PR
+            const NUM_REVIEWERS = 1;
+            // ──────────────────────────────────────────────────────────
+
+            async function assignReviewers(pr) {
+              // Skip draft PRs
+              if (pr.draft) {
+                console.log(`PR #${pr.number}: Draft PR. Skipping.`);
+                return;
+              }
+
+              // Skip PRs that already have reviewers
+              const reviews = await github.rest.pulls.listRequestedReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number
+              });
+
+              if (reviews.data.users.length > 0 || reviews.data.teams.length > 0) {
+                console.log(`PR #${pr.number}: Already has reviewers. Skipping.`);
+                return;
+              }
+
+              const prAuthor = pr.user.login;
+
+              // Filter out the PR author from potential reviewers
+              const eligible = REVIEWERS.filter(r => r !== prAuthor);
+
+              if (eligible.length === 0) {
+                console.log(`PR #${pr.number}: No eligible reviewers available.`);
+                return;
+              }
+
+              // Round-robin: use PR number as a simple rotation key
+              const selected = [];
+              for (let i = 0; i < Math.min(NUM_REVIEWERS, eligible.length); i++) {
+                const index = (pr.number + i) % eligible.length;
+                selected.push(eligible[index]);
+              }
+
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                reviewers: selected
+              });
+
+              console.log(`PR #${pr.number}: Assigned reviewers: ${selected.join(", ")}`);
+            }
+
+            // ── Dispatch mode ─────────────────────────────────────────
+            if (context.eventName === "workflow_dispatch") {
+              console.log("Manual dispatch: reviewing all open PRs...");
+              const prs = await github.paginate(
+                github.rest.pulls.list,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: "open",
+                  per_page: 100
+                }
+              );
+              console.log(`Found ${prs.length} open PR(s).`);
+              for (const pr of prs) {
+                await assignReviewers(pr);
+              }
+              return;
+            }
+
+            // ── Event mode ────────────────────────────────────────────
+            await assignReviewers(context.payload.pull_request);

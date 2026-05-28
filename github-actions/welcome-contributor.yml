@@ -1,0 +1,102 @@
+# ============================================================================
+# Workflow: First-Time Contributor Welcome
+# ============================================================================
+# Posts a friendly welcome comment when a user opens their first-ever
+# issue or PR in the repository. Helps build community.
+#
+# Manual dispatch: Not applicable for this workflow (welcome messages
+# are inherently reactive to first-time events).
+#
+# Portability: 🔧 Configurable
+#   - Customize the welcome messages below.
+#   - Optionally link to your CONTRIBUTING.md or Code of Conduct.
+# ============================================================================
+
+name: First-Time Contributor Welcome
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Welcome First-Time Contributors
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // ── Configuration ─────────────────────────────────────────
+            const ISSUE_MESSAGE = [
+              "👋 Hey @{author}, thanks for opening your first issue in this repository!",
+              "",
+              "We appreciate you taking the time to report this. A maintainer will",
+              "review it shortly.",
+              "",
+              "In the meantime, please make sure you've:",
+              "- [ ] Searched for existing issues to avoid duplicates",
+              "- [ ] Provided enough detail for us to reproduce or understand the issue",
+              "",
+              "Welcome aboard! 🎉"
+            ].join("\n");
+
+            const PR_MESSAGE = [
+              "🎉 Hey @{author}, thanks for opening your first pull request!",
+              "",
+              "We're excited to review your contribution. A maintainer will",
+              "take a look soon.",
+              "",
+              "While you wait, please make sure you've:",
+              "- [ ] Referenced the related issue (e.g., `Fixes #123`)",
+              "- [ ] Added/updated tests if applicable",
+              "- [ ] Followed the project's coding style",
+              "",
+              "Welcome to the team! 🚀"
+            ].join("\n");
+            // ──────────────────────────────────────────────────────────
+
+            let author, itemNumber, message, searchType;
+
+            if (context.eventName === "issues") {
+              author = context.payload.issue.user.login;
+              itemNumber = context.payload.issue.number;
+              searchType = "issues";
+              message = ISSUE_MESSAGE;
+            } else {
+              author = context.payload.pull_request.user.login;
+              itemNumber = context.payload.pull_request.number;
+              searchType = "prs";
+              message = PR_MESSAGE;
+            }
+
+            // Check if this user has any prior issues/PRs in this repo
+            const query = searchType === "issues"
+              ? `repo:${context.repo.owner}/${context.repo.repo} author:${author} is:issue`
+              : `repo:${context.repo.owner}/${context.repo.repo} author:${author} is:pr`;
+
+            const { data: searchResult } = await github.rest.search.issuesAndPullRequests({
+              q: query,
+              per_page: 5
+            });
+
+            // If they have more than 1 result, this isn't their first
+            if (searchResult.total_count > 1) {
+              console.log(`${author} is not a first-time contributor. Skipping.`);
+              return;
+            }
+
+            // Post the welcome message
+            const body = message.replace(/\{author\}/g, author);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: itemNumber,
+              body: body
+            });
+
+            console.log(`Welcome message posted for first-time contributor @${author}.`);

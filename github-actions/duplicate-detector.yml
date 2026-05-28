@@ -5,9 +5,7 @@
 # using word-overlap similarity (Jaccard index). If a potential duplicate is
 # found above the threshold, posts a comment with links.
 #
-# This uses a simple text-similarity approach that works WITHOUT external
-# APIs. For better semantic matching, you can swap in an AI-based approach
-# using OpenAI embeddings or similar (see comments in the script).
+# Manual dispatch: Cross-compares ALL open issues against each other.
 #
 # Portability: 🔧 Configurable
 #   - Adjust SIMILARITY_THRESHOLD (0.0 – 1.0) to tune sensitivity.
@@ -19,6 +17,7 @@ name: Duplicate Issue Detector
 on:
   issues:
     types: [opened]
+  workflow_dispatch: # Manual trigger — cross-compares all open issues
 
 jobs:
   detect-duplicates:
@@ -30,21 +29,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const newIssue = context.payload.issue;
-            const newTitle = newIssue.title || "";
-            const newBody = newIssue.body || "";
-            const newText = `${newTitle} ${newBody}`;
-
             // ── Configuration ─────────────────────────────────────────
-            // Minimum similarity score (0.0 – 1.0) to flag as duplicate.
-            // Higher = stricter matching. 0.3 is a reasonable default.
             const SIMILARITY_THRESHOLD = 0.3;
-            // Maximum number of potential duplicates to show
             const MAX_RESULTS = 3;
             // ──────────────────────────────────────────────────────────
 
-            // ── Text Processing Utilities ─────────────────────────────
-            // Common English stop words to exclude from comparison
             const STOP_WORDS = new Set([
               "a", "an", "the", "is", "are", "was", "were", "be", "been",
               "being", "have", "has", "had", "do", "does", "did", "will",
@@ -73,16 +62,79 @@ jobs:
             function jaccardSimilarity(textA, textB) {
               const setA = new Set(tokenize(textA));
               const setB = new Set(tokenize(textB));
-
               if (setA.size === 0 || setB.size === 0) return 0;
-
               const intersection = new Set([...setA].filter(x => setB.has(x)));
               const union = new Set([...setA, ...setB]);
-
               return intersection.size / union.size;
             }
 
-            // ── Fetch All Open Issues ─────────────────────────────────
+            async function flagDuplicates(targetIssue, otherIssues) {
+              // Skip if already flagged
+              if (targetIssue.labels.some(l => l.name === "possible-duplicate")) {
+                console.log(`Issue #${targetIssue.number}: Already flagged. Skipping.`);
+                return;
+              }
+
+              const targetText = `${targetIssue.title} ${targetIssue.body || ""}`;
+              const candidates = [];
+
+              for (const existing of otherIssues) {
+                if (existing.number === targetIssue.number) continue;
+                const existingText = `${existing.title} ${existing.body || ""}`;
+                const score = jaccardSimilarity(targetText, existingText);
+                if (score >= SIMILARITY_THRESHOLD) {
+                  candidates.push({
+                    number: existing.number,
+                    title: existing.title,
+                    score: score
+                  });
+                }
+              }
+
+              candidates.sort((a, b) => b.score - a.score);
+              const topMatches = candidates.slice(0, MAX_RESULTS);
+
+              if (topMatches.length === 0) {
+                console.log(`Issue #${targetIssue.number}: No duplicates found.`);
+                return;
+              }
+
+              const matchList = topMatches
+                .map(m => `- #${m.number} — **${m.title}** (${Math.round(m.score * 100)}% similar)`)
+                .join("\n");
+
+              const comment = [
+                `🔍 **Potential Duplicate Detected**`,
+                ``,
+                `This issue may be related to the following existing issue(s):`,
+                ``,
+                matchList,
+                ``,
+                `If one of these addresses your concern, please add your input `,
+                `there and close this issue. If this is a distinct issue, no `,
+                `action is needed.`,
+                ``,
+                `*This is an automated similarity check. Scores are approximate.*`
+              ].join("\n");
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: targetIssue.number,
+                body: comment
+              });
+
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: targetIssue.number,
+                labels: ["possible-duplicate"]
+              });
+
+              console.log(`Flagged issue #${targetIssue.number} with ${topMatches.length} potential duplicate(s).`);
+            }
+
+            // ── Fetch all open issues (used by both modes) ────────────
             const allIssues = await github.paginate(
               github.rest.issues.listForRepo,
               {
@@ -92,75 +144,19 @@ jobs:
                 per_page: 100
               }
             );
+            const realIssues = allIssues.filter(i => !i.pull_request);
 
-            // Filter out the current issue and any PRs
-            const otherIssues = allIssues.filter(
-              i => i.number !== newIssue.number && !i.pull_request
-            );
-
-            console.log(`Comparing against ${otherIssues.length} existing open issue(s).`);
-
-            // ── Compare and Rank ──────────────────────────────────────
-            const candidates = [];
-
-            for (const existing of otherIssues) {
-              const existingText = `${existing.title} ${existing.body || ""}`;
-              const score = jaccardSimilarity(newText, existingText);
-
-              if (score >= SIMILARITY_THRESHOLD) {
-                candidates.push({
-                  number: existing.number,
-                  title: existing.title,
-                  score: score,
-                  url: existing.html_url
-                });
+            // ── Dispatch mode: cross-compare all open issues ──────────
+            if (context.eventName === "workflow_dispatch") {
+              console.log(`Manual dispatch: cross-comparing ${realIssues.length} open issue(s)...`);
+              for (const issue of realIssues) {
+                await flagDuplicates(issue, realIssues);
               }
-            }
-
-            // Sort by similarity score (highest first) and limit results
-            candidates.sort((a, b) => b.score - a.score);
-            const topMatches = candidates.slice(0, MAX_RESULTS);
-
-            if (topMatches.length === 0) {
-              console.log("No potential duplicates found.");
               return;
             }
 
-            // ── Post Comment with Potential Duplicates ─────────────────
-            const matchList = topMatches
-              .map(m => {
-                const pct = Math.round(m.score * 100);
-                return `- #${m.number} — **${m.title}** (${pct}% similar)`;
-              })
-              .join("\n");
-
-            const comment = [
-              `🔍 **Potential Duplicate Detected**`,
-              ``,
-              `This issue may be related to the following existing issue(s):`,
-              ``,
-              matchList,
-              ``,
-              `If one of these addresses your concern, please add your input `,
-              `there and close this issue. If this is a distinct issue, no `,
-              `action is needed.`,
-              ``,
-              `*This is an automated similarity check. Scores are approximate.*`
-            ].join("\n");
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: newIssue.number,
-              body: comment
-            });
-
-            // Optionally add a label for maintainer review
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: newIssue.number,
-              labels: ["possible-duplicate"]
-            });
-
-            console.log(`Flagged issue #${newIssue.number} with ${topMatches.length} potential duplicate(s).`);
+            // ── Event mode: check the single new issue ────────────────
+            const newIssue = context.payload.issue;
+            const others = realIssues.filter(i => i.number !== newIssue.number);
+            console.log(`Comparing against ${others.length} existing open issue(s).`);
+            await flagDuplicates(newIssue, others);

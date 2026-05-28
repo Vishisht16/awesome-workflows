@@ -1,0 +1,121 @@
+# ============================================================================
+# Workflow: PR Issue Assignment Check
+# ============================================================================
+# Ensures every PR references an issue and that the PR author is assigned
+# to it. Closes non-compliant PRs with a descriptive comment.
+#
+# Manual dispatch: Reviews ALL open PRs for compliance.
+#
+# Portability: ✅ Drop-in
+# ============================================================================
+
+name: PR Issue Assignment Check
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+  workflow_dispatch: # Manual trigger — reviews all open PRs
+
+jobs:
+  check-issue-assignment:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Check PR for Assigned Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            async function checkPR(pr) {
+              const prAuthor = pr.user.login;
+              const prBody = pr.body || "";
+
+              const issueRegex = /#(\d+)/g;
+              const matches = [...prBody.matchAll(issueRegex)];
+
+              let foundRealIssue = false;
+              let hasAssignedIssue = false;
+
+              for (const match of matches) {
+                const issueNumber = parseInt(match[1], 10);
+                try {
+                  const issue = await github.rest.issues.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber
+                  });
+
+                  // Skip if the reference points to another PR
+                  if (issue.data.pull_request) continue;
+
+                  foundRealIssue = true;
+
+                  const assignees = issue.data.assignees.map(a => a.login);
+                  if (assignees.includes(prAuthor)) {
+                    hasAssignedIssue = true;
+                    break;
+                  }
+                } catch (error) {
+                  console.log(`Could not fetch issue #${issueNumber}. It might not exist.`);
+                }
+              }
+
+              async function commentAndClose(message) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: `@${prAuthor} ${message}`
+                });
+
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  state: 'closed'
+                });
+              }
+
+              if (!foundRealIssue) {
+                console.log(`PR #${pr.number}: No valid issue referenced.`);
+                await commentAndClose(
+                  "This PR does not reference an issue. Please reference an issue " +
+                  "in the description (e.g., Fixes #123) and recreate the PR."
+                );
+                return;
+              }
+
+              if (!hasAssignedIssue) {
+                console.log(`PR #${pr.number}: Issue found, but author is not assigned.`);
+                await commentAndClose(
+                  "The issue you referenced is not assigned to you. Please ensure " +
+                  "you are assigned to the issue, then recreate the PR."
+                );
+                return;
+              }
+
+              console.log(`PR #${pr.number}: ✅ Author is assigned to the referenced issue.`);
+            }
+
+            // ── Dispatch mode ─────────────────────────────────────────
+            if (context.eventName === "workflow_dispatch") {
+              console.log("Manual dispatch: reviewing all open PRs...");
+              const prs = await github.paginate(
+                github.rest.pulls.list,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: "open",
+                  per_page: 100
+                }
+              );
+              console.log(`Found ${prs.length} open PR(s) to review.`);
+              for (const pr of prs) {
+                await checkPR(pr);
+              }
+              return;
+            }
+
+            // ── Event mode ────────────────────────────────────────────
+            await checkPR(context.payload.pull_request);
