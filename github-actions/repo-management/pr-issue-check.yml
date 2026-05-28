@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: PR Issue Assignment Check
 # ============================================================================
 # Ensures every PR references an issue and that the PR author is assigned
@@ -6,7 +6,7 @@
 #
 # Manual dispatch: Reviews ALL open PRs for compliance.
 #
-# Portability: ✅ Drop-in
+# Portability: Drop-in
 # ============================================================================
 
 name: PR Issue Assignment Check
@@ -14,7 +14,7 @@ name: PR Issue Assignment Check
 on:
   pull_request:
     types: [opened, edited, reopened]
-  workflow_dispatch: # Manual trigger — reviews all open PRs
+  workflow_dispatch: # Manual trigger -- reviews all open PRs
 
 jobs:
   check-issue-assignment:
@@ -95,10 +95,10 @@ jobs:
                 return;
               }
 
-              console.log(`PR #${pr.number}: ✅ Author is assigned to the referenced issue.`);
+              console.log(`PR #${pr.number}: [OK] Author is assigned to the referenced issue.`);
             }
 
-            // ── Dispatch mode ─────────────────────────────────────────
+            // -- Dispatch mode -----------------------------------------
             if (context.eventName === "workflow_dispatch") {
               console.log("Manual dispatch: reviewing all open PRs...");
               const prs = await github.paginate(
@@ -117,5 +117,5 @@ jobs:
               return;
             }
 
-            // ── Event mode ────────────────────────────────────────────
+            // -- Event mode --------------------------------------------
             await checkPR(context.payload.pull_request);

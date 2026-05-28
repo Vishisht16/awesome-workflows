@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: Auto-Label Issues by Keywords
 # ============================================================================
 # Scans new/edited issue titles and bodies for keywords and automatically
@@ -6,7 +6,7 @@
 #
 # Manual dispatch: Reviews ALL open issues and applies missing labels.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Edit the `LABEL_RULES` object to match your repository's label taxonomy.
 #   - Each rule maps a label name to an array of trigger keywords.
 # ============================================================================
@@ -16,7 +16,7 @@ name: Auto-Label Issues by Keywords
 on:
   issues:
     types: [opened, edited]
-  workflow_dispatch: # Manual trigger — reviews all open issues
+  workflow_dispatch: # Manual trigger -- reviews all open issues
 
 jobs:
   auto-label:
@@ -28,7 +28,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── Keyword-to-Label Mapping ──────────────────────────────
+            // -- Keyword-to-Label Mapping ------------------------------
             // Customize this object for your repository.
             // Keys are label names, values are arrays of trigger keywords.
             const LABEL_RULES = {
@@ -42,7 +42,7 @@ jobs:
               "dependencies": ["dependency", "dependencies", "upgrade", "update", "version", "outdated", "deprecated"],
             };
 
-            // ── Core labeling function ────────────────────────────────
+            // -- Core labeling function --------------------------------
             async function labelIssue(issue) {
               const title = (issue.title || "").toLowerCase();
               const body = (issue.body || "").toLowerCase();
@@ -71,7 +71,7 @@ jobs:
               });
             }
 
-            // ── Dispatch mode: process all open issues ────────────────
+            // -- Dispatch mode: process all open issues ----------------
             if (context.eventName === "workflow_dispatch") {
               console.log("Manual dispatch: reviewing all open issues...");
               const issues = await github.paginate(
@@ -91,5 +91,5 @@ jobs:
               return;
             }
 
-            // ── Event mode: process the single triggering issue ───────
+            // -- Event mode: process the single triggering issue -------
             await labelIssue(context.payload.issue);

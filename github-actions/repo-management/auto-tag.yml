@@ -4,7 +4,7 @@
 # Creates a new Git tag when a version bump is detected in a config file
 # (e.g., package.json, pyproject.toml, Cargo.toml) on push to main.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Edit VERSION_FILE and the jq/regex to match your project's version source.
 # ============================================================================
 
@@ -13,7 +13,7 @@ name: Auto-Tag on Merge
 on:
   push:
     branches: [main, master]
-  workflow_dispatch: # Manual trigger — tags current version if untagged
+  workflow_dispatch: # Manual trigger -- tags current version if untagged
 
 jobs:
   auto-tag:
@@ -34,7 +34,7 @@ jobs:
             const fs = require('fs');
             const path = require('path');
 
-            // ── Configuration ─────────────────────────────────────────
+            // -- Configuration -----------------------------------------
             // Supported version files (checked in order, first match wins)
             const VERSION_FILES = [
               { file: 'package.json',    extract: (c) => JSON.parse(c).version },
@@ -42,7 +42,7 @@ jobs:
               { file: 'Cargo.toml',      extract: (c) => c.match(/version\s*=\s*"([^"]+)"/)?.[1] },
               { file: 'VERSION',         extract: (c) => c.trim() },
             ];
-            // ──────────────────────────────────────────────────────────
+            // --------------------------------------------------------------
 
             // Find and read the version file
             let version = null;
@@ -65,7 +65,7 @@ jobs:
 
             // Normalize: ensure version starts with 'v'
             const tag = version.startsWith('v') ? version : `v${version}`;
-            console.log(`Detected version: ${version} (from ${versionFile}) → tag: ${tag}`);
+            console.log(`Detected version: ${version} (from ${versionFile}) -> tag: ${tag}`);
 
             // Check if this tag already exists
             try {
@@ -78,7 +78,7 @@ jobs:
               return;
             } catch (e) {
               if (e.status !== 404) throw e;
-              // 404 means tag doesn't exist — proceed
+              // 404 means tag doesn't exist -- proceed
             }
 
             // Create the tag
@@ -91,4 +91,4 @@ jobs:
               sha: sha
             });
 
-            console.log(`✅ Created tag ${tag} at ${sha.substring(0, 7)}`);
+            console.log(`[OK] Created tag ${tag} at ${sha.substring(0, 7)}`);

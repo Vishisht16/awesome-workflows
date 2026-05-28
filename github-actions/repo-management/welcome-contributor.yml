@@ -7,7 +7,7 @@
 # Manual dispatch: Not applicable for this workflow (welcome messages
 # are inherently reactive to first-time events).
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Customize the welcome messages below.
 #   - Optionally link to your CONTRIBUTING.md or Code of Conduct.
 # ============================================================================
@@ -31,9 +31,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── Configuration ─────────────────────────────────────────
+            // -- Configuration -----------------------------------------
             const ISSUE_MESSAGE = [
-              "👋 Hey @{author}, thanks for opening your first issue in this repository!",
+              "Hey @{author}, thanks for opening your first issue in this repository!",
               "",
               "We appreciate you taking the time to report this. A maintainer will",
               "review it shortly.",
@@ -42,11 +42,11 @@ jobs:
               "- [ ] Searched for existing issues to avoid duplicates",
               "- [ ] Provided enough detail for us to reproduce or understand the issue",
               "",
-              "Welcome aboard! 🎉"
+              "Welcome aboard!"
             ].join("\n");
 
             const PR_MESSAGE = [
-              "🎉 Hey @{author}, thanks for opening your first pull request!",
+              "Hey @{author}, thanks for opening your first pull request!",
               "",
               "We're excited to review your contribution. A maintainer will",
               "take a look soon.",
@@ -56,9 +56,9 @@ jobs:
               "- [ ] Added/updated tests if applicable",
               "- [ ] Followed the project's coding style",
               "",
-              "Welcome to the team! 🚀"
+              "Welcome to the team!"
             ].join("\n");
-            // ──────────────────────────────────────────────────────────
+            // --------------------------------------------------------------
 
             let author, itemNumber, message, searchType;
 

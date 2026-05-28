@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: PR Description Checklist Validator
 # ============================================================================
 # Ensures all checklist items (- [ ]) in the PR body are checked before
@@ -6,7 +6,7 @@
 #
 # Manual dispatch: Reviews ALL open PRs for unchecked items.
 #
-# Portability: ✅ Drop-in
+# Portability: Drop-in
 # ============================================================================
 
 name: PR Checklist Validator
@@ -14,7 +14,7 @@ name: PR Checklist Validator
 on:
   pull_request:
     types: [opened, edited, reopened]
-  workflow_dispatch: # Manual trigger — reviews all open PRs
+  workflow_dispatch: # Manual trigger -- reviews all open PRs
 
 jobs:
   check-checklist:
@@ -34,20 +34,20 @@ jobs:
               const checked = (body.match(/- \[x\]/gi) || []).length;
               const total = unchecked + checked;
 
-              // No checklist found — pass
+              // No checklist found -- pass
               if (total === 0) {
                 console.log(`PR #${pr.number}: No checklist items found. Passing.`);
                 return true;
               }
 
-              // All checked — pass
+              // All checked -- pass
               if (unchecked === 0) {
-                console.log(`PR #${pr.number}: All ${total} checklist items checked. ✅`);
+                console.log(`PR #${pr.number}: All ${total} checklist items checked. [OK]`);
                 return true;
               }
 
-              // Some unchecked — fail
-              console.log(`PR #${pr.number}: ${unchecked}/${total} items unchecked. ❌`);
+              // Some unchecked -- fail
+              console.log(`PR #${pr.number}: ${unchecked}/${total} items unchecked. [FAIL]`);
 
               // Check if we already commented to avoid duplicates
               const comments = await github.rest.issues.listComments({
@@ -67,7 +67,7 @@ jobs:
                   repo: context.repo.repo,
                   issue_number: pr.number,
                   body: [
-                    `⚠️ This PR has **${unchecked} unchecked checklist items** out of ${total} total.`,
+                    `WARNING: This PR has **${unchecked} unchecked checklist items** out of ${total} total.`,
                     ``,
                     `Please complete all checklist items in the PR description before this can be merged.`,
                     ``,
@@ -80,7 +80,7 @@ jobs:
               return false;
             }
 
-            // ── Dispatch mode ─────────────────────────────────────────
+            // -- Dispatch mode -----------------------------------------
             if (context.eventName === "workflow_dispatch") {
               console.log("Manual dispatch: reviewing all open PRs...");
               const prs = await github.paginate(
@@ -104,5 +104,5 @@ jobs:
               return;
             }
 
-            // ── Event mode ────────────────────────────────────────────
+            // -- Event mode --------------------------------------------
             await checkPR(context.payload.pull_request);

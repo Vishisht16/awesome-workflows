@@ -3,7 +3,7 @@
 # ============================================================================
 # Periodically deletes old workflow run logs and artifacts to save storage.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Adjust RETENTION_DAYS to your preference.
 # ============================================================================
 
@@ -25,9 +25,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── Configuration ─────────────────────────────────────────
+            // -- Configuration -----------------------------------------
             const RETENTION_DAYS = 30;
-            // ──────────────────────────────────────────────────────────
+            // --------------------------------------------------------------
 
             const cutoff = new Date();
             cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);

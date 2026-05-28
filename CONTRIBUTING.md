@@ -1,12 +1,12 @@
 # Contributing to Awesome Workflows
 
-First off, thank you for considering contributing to Awesome Workflows! 🎉 This project is community-driven, and we welcome contributions of all kinds, whether it's submitting a new workflow, fixing a bug, or improving documentation.
+First off, thank you for considering contributing to Awesome Workflows! This project is community-driven, and we welcome contributions of all kinds, whether it's submitting a new workflow, fixing a bug, or improving documentation.
 
 By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ---
 
-## 🛠️ How Can I Contribute?
+## How Can I Contribute?
 
 ### 1. Submitting a New Workflow
 Have a great workflow that other repositories could benefit from? We'd love to add it!
@@ -17,7 +17,7 @@ Have a great workflow that other repositories could benefit from? We'd love to a
 3. Ensure your workflow has clear comments at the top explaining:
    - What the workflow does.
    - Any prerequisites or setup required.
-   - Its Portability Rating (✅ Drop-in, 🔧 Configurable, or ⚙️ Needs Setup).
+   - Its Portability Rating ([D] Drop-in, [C] Configurable, or [S] Needs Setup).
 4. Update the category's `README.md` to include your workflow in the index and the detailed descriptions section.
 5. Open a Pull Request!
 
@@ -33,7 +33,7 @@ Need a workflow for a specific use case but don't know how to write it?
 
 ---
 
-## 🚀 Pull Request Guidelines
+## Pull Request Guidelines
 
 To ensure a smooth review process, please follow these guidelines:
 
@@ -42,7 +42,7 @@ To ensure a smooth review process, please follow these guidelines:
 - **Keep it focused:** Try to limit each PR to a single new workflow or a specific fix.
 - **Check the checklists:** Ensure all items in the Pull Request Template are checked off.
 
-## 🧪 Testing Your Workflows
+## Testing Your Workflows
 Before submitting, please test your workflow in a sandbox repository to ensure it behaves as expected. If the workflow requires specific configurations (like secrets), clearly document them.
 
-Thank you for helping make Awesome Workflows better for everyone! 🚀
+Thank you for helping make Awesome Workflows better for everyone!

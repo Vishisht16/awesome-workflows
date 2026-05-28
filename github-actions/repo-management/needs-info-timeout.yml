@@ -1,11 +1,11 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: Needs Info Timeout
 # ============================================================================
 # When an issue has the `needs-info` label and the original author has not
 # responded within a configurable number of days, this workflow auto-closes
 # the issue with a polite comment.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Adjust LABEL_NAME to match whatever label you use.
 #   - Adjust TIMEOUT_DAYS for your response window.
 # ============================================================================
@@ -28,10 +28,10 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── Configuration ─────────────────────────────────────────
+            // -- Configuration -----------------------------------------
             const LABEL_NAME = "needs-info";
             const TIMEOUT_DAYS = 14;
-            // ──────────────────────────────────────────────────────────
+            // --------------------------------------------------------------
 
             const now = new Date();
             const timeoutMs = TIMEOUT_DAYS * 24 * 60 * 60 * 1000;
@@ -109,7 +109,7 @@ jobs:
                 continue;
               }
 
-              // ── Timeout Reached: Comment and Close ────────────────────
+              // -- Timeout Reached: Comment and Close ------------------
               console.log(`Issue #${issue.number}: Timed out. Closing.`);
 
               await github.rest.issues.createComment({
@@ -122,7 +122,7 @@ jobs:
                   `${TIMEOUT_DAYS} days.\n\n`,
                   `If you have the needed details, feel free to reopen this `,
                   `issue or create a new one with the requested information. `,
-                  `Thank you! 🙏`
+                  `Thank you!`
                 ].join("")
               });
 

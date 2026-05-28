@@ -1,12 +1,12 @@
 ---
-name: "🐛 Bug Report"
+name: "Bug Report"
 description: "Report a bug or issue with an existing workflow"
 title: "fix: [Workflow Name] issue description"
 labels: ["bug"]
 assignees: []
 ---
 
-## 🐛 Bug Report
+## Bug Report
 
 ### Which workflow is this about?
 _Example: `github-actions/repo-management/stale-issues.yml`_

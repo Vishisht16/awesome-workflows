@@ -1,11 +1,11 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: Branch Cleanup
 # ============================================================================
 # Deletes branches that have been merged or are stale (no commits for 90+
 # days). Automatically cleans up after PR merge, and runs weekly to catch
 # abandoned branches.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Adjust STALE_DAYS and PROTECTED_PATTERNS to match your branching model.
 # ============================================================================
 
@@ -17,7 +17,7 @@ on:
   schedule:
     # Runs every Monday at 06:00 UTC
     - cron: '0 6 * * 1'
-  workflow_dispatch: # Manual trigger — full branch audit
+  workflow_dispatch: # Manual trigger -- full branch audit
 
 jobs:
   cleanup:
@@ -29,7 +29,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── Configuration ─────────────────────────────────────────
+            // -- Configuration -----------------------------------------
             const STALE_DAYS = 90;
             // Branches matching these patterns are NEVER deleted
             const PROTECTED_PATTERNS = [
@@ -39,13 +39,13 @@ jobs:
               /^release\/.*/,
               /^hotfix\/.*/,
             ];
-            // ──────────────────────────────────────────────────────────
+            // --------------------------------------------------------------
 
             function isProtected(branchName) {
               return PROTECTED_PATTERNS.some(p => p.test(branchName));
             }
 
-            // ── PR merged: delete head branch ─────────────────────────
+            // -- PR merged: delete head branch -------------------------
             if (context.eventName === "pull_request") {
               const pr = context.payload.pull_request;
               if (!pr.merged) {
@@ -71,14 +71,14 @@ jobs:
                   repo: context.repo.repo,
                   ref: `heads/${branch}`
                 });
-                console.log(`✅ Deleted merged branch: ${branch}`);
+                console.log(`[OK] Deleted merged branch: ${branch}`);
               } catch (e) {
                 console.log(`Could not delete branch "${branch}": ${e.message}`);
               }
               return;
             }
 
-            // ── Scheduled / Manual: find and delete stale branches ────
+            // -- Scheduled / Manual: find and delete stale branches ----
             console.log(`Scanning for branches with no activity for ${STALE_DAYS}+ days...`);
             const cutoff = new Date();
             cutoff.setDate(cutoff.getDate() - STALE_DAYS);
@@ -114,7 +114,7 @@ jobs:
                   repo: context.repo.repo,
                   ref: `heads/${branch.name}`
                 });
-                console.log(`✅ Deleted stale branch: ${branch.name} (${daysOld} days old)`);
+                console.log(`[OK] Deleted stale branch: ${branch.name} (${daysOld} days old)`);
                 deleted++;
               } catch (e) {
                 console.log(`Could not delete "${branch.name}": ${e.message}`);

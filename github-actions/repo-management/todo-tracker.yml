@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: TODO/FIXME Tracker
 # ============================================================================
 # Scans PRs for new TODO, FIXME, HACK, or XXX comments and posts a
@@ -6,7 +6,7 @@
 #
 # Manual dispatch: Scans the entire codebase and posts a summary.
 #
-# Portability: ✅ Drop-in
+# Portability: Drop-in
 #   - Optionally customize KEYWORDS.
 # ============================================================================
 
@@ -15,7 +15,7 @@ name: TODO/FIXME Tracker
 on:
   pull_request:
     types: [opened, synchronize]
-  workflow_dispatch: # Manual trigger — full repo scan
+  workflow_dispatch: # Manual trigger -- full repo scan
 
 jobs:
   track-todos:
@@ -35,10 +35,10 @@ jobs:
           script: |
             const { execSync } = require('child_process');
 
-            // ── Configuration ─────────────────────────────────────────
+            // -- Configuration -----------------------------------------
             const KEYWORDS = ["TODO", "FIXME", "HACK", "XXX", "BUG"];
             const MAX_RESULTS = 30;
-            // ──────────────────────────────────────────────────────────
+            // --------------------------------------------------------------
 
             const pattern = KEYWORDS.join("|");
             const MARKER = "<!-- todo-tracker -->";
@@ -93,7 +93,7 @@ jobs:
 
               const body = [
                 MARKER,
-                `📝 **Found ${findings.length} new TODO/FIXME comment(s) in this PR:**`,
+                `**Found ${findings.length} new TODO/FIXME comment(s) in this PR:**`,
                 ``,
                 `| Keyword | File | Line |`,
                 `|---------|------|------|`,
@@ -134,7 +134,7 @@ jobs:
               return;
             }
 
-            // ── Manual dispatch: full repo scan ───────────────────────
+            // -- Manual dispatch: full repo scan -----------------------
             let output;
             try {
               output = execSync(
@@ -151,10 +151,10 @@ jobs:
             // Post to workflow summary
             const core = require('@actions/core');
             if (lines.length === 0) {
-              core.summary.addHeading('📝 TODO/FIXME Report', 2);
-              core.summary.addRaw('✅ No TODO/FIXME comments found in the codebase.');
+              core.summary.addHeading('TODO/FIXME Report', 2);
+              core.summary.addRaw('No TODO/FIXME comments found in the codebase.');
             } else {
-              core.summary.addHeading(`📝 TODO/FIXME Report — ${lines.length} item(s)`, 2);
+              core.summary.addHeading(`TODO/FIXME Report -- ${lines.length} item(s)`, 2);
               const limited = lines.slice(0, 50);
               core.summary.addCodeBlock(limited.join('\n'), 'text');
               if (lines.length > 50) {

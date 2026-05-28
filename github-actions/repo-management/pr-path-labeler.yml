@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: Auto-Label PRs by Path
 # ============================================================================
 # Applies labels to PRs based on which files/directories were modified.
@@ -6,7 +6,7 @@
 #
 # Manual dispatch: Reviews ALL open PRs and applies missing path labels.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Edit the PATH_LABELS mapping to match your project structure.
 # ============================================================================
 
@@ -15,7 +15,7 @@ name: Auto-Label PRs by Path
 on:
   pull_request:
     types: [opened, synchronize]
-  workflow_dispatch: # Manual trigger — reviews all open PRs
+  workflow_dispatch: # Manual trigger -- reviews all open PRs
 
 jobs:
   path-label:
@@ -27,7 +27,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── Path-to-Label Mapping ─────────────────────────────────
+            // -- Path-to-Label Mapping ---------------------------------
             // Customize for your repository structure.
             // Uses simple prefix matching (starts-with).
             const PATH_LABELS = {
@@ -80,7 +80,7 @@ jobs:
               });
             }
 
-            // ── Dispatch mode ─────────────────────────────────────────
+            // -- Dispatch mode -----------------------------------------
             if (context.eventName === "workflow_dispatch") {
               console.log("Manual dispatch: reviewing all open PRs...");
               const prs = await github.paginate(
@@ -99,5 +99,5 @@ jobs:
               return;
             }
 
-            // ── Event mode ────────────────────────────────────────────
+            // -- Event mode --------------------------------------------
             await labelPR(context.payload.pull_request);

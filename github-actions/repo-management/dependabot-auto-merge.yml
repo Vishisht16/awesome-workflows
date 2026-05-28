@@ -8,7 +8,7 @@
 #   - "Allow auto-merge" must be enabled in repo Settings > General.
 #   - Branch protection rules with required status checks should be set.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Change the `if` condition to restrict to patch-only if desired.
 # ============================================================================
 
@@ -44,7 +44,7 @@ jobs:
       - name: Log skipped major update
         if: steps.metadata.outputs.update-type == 'version-update:semver-major'
         run: |
-          echo "⚠️ Major version bump detected. Skipping auto-merge."
+          echo "WARNING: Major version bump detected. Skipping auto-merge."
           echo "PR: ${{ github.event.pull_request.html_url }}"
           echo "Dependency: ${{ steps.metadata.outputs.dependency-names }}"
-          echo "Update: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}"
+          echo "Update: ${{ steps.metadata.outputs.previous-version }} -> ${{ steps.metadata.outputs.new-version }}"

@@ -1,10 +1,10 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: Stale Issue & PR Closer
 # ============================================================================
 # Automatically labels issues and PRs that have been inactive as "stale",
 # then closes them after an additional grace period.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Adjust `days-before-stale`, `days-before-close` to your preference.
 #   - Customize messages and exempt labels as needed.
 # ============================================================================
@@ -27,44 +27,44 @@ jobs:
       - name: Mark and Close Stale Issues/PRs
         uses: actions/stale@v9
         with:
-          # ── Issue Configuration ──────────────────────────────────────
+          # -- Issue Configuration ------------------------------------
           days-before-issue-stale: 60
           days-before-issue-close: 14
           stale-issue-label: 'stale'
           stale-issue-message: >
-            👋 This issue has been automatically marked as **stale** because
+            This issue has been automatically marked as **stale** because
             it has not had any activity in the last 60 days. It will be
             closed in 14 days if no further activity occurs.
 
             If this issue is still relevant, please leave a comment or
             remove the `stale` label.
           close-issue-message: >
-            🔒 This issue has been automatically closed due to inactivity.
+            This issue has been automatically closed due to inactivity.
             If you believe this was closed in error, feel free to reopen it
             with updated context.
 
-          # ── PR Configuration ─────────────────────────────────────────
+          # -- PR Configuration ---------------------------------------
           days-before-pr-stale: 30
           days-before-pr-close: 7
           stale-pr-label: 'stale'
           stale-pr-message: >
-            👋 This pull request has been automatically marked as **stale**
+            This pull request has been automatically marked as **stale**
             because it has not had any activity in the last 30 days. It will
             be closed in 7 days if no further activity occurs.
 
             If you're still working on this, please push a commit, leave a
             comment, or remove the `stale` label.
           close-pr-message: >
-            🔒 This pull request has been automatically closed due to
+            This pull request has been automatically closed due to
             inactivity. Feel free to reopen it when you're ready to
             continue.
 
-          # ── Exempt Labels ────────────────────────────────────────────
+          # -- Exempt Labels ------------------------------------------
           # Issues/PRs with these labels will never be marked as stale.
           exempt-issue-labels: 'pinned,security,good first issue,help wanted'
           exempt-pr-labels: 'pinned,security,work-in-progress'
 
-          # ── General ──────────────────────────────────────────────────
+          # -- General ------------------------------------------------
           # Only process a limited number per run to avoid rate limits
           operations-per-run: 100
           # Remove the stale label when there's new activity

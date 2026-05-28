@@ -1,11 +1,11 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: Lock Closed Threads
 # ============================================================================
 # Locks issues and PRs that have been closed for a specified number of days
 # to prevent "necro-bumping" on old threads. Forces users to open new,
 # trackable issues instead of reviving stale conversations.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Adjust `issue-inactive-days` and `pr-inactive-days` to your preference.
 #   - Customize the lock comments.
 # ============================================================================
@@ -29,22 +29,22 @@ jobs:
       - name: Lock Stale Closed Threads
         uses: dessant/lock-threads@v5
         with:
-          # ── Issue Settings ───────────────────────────────────────────
+          # -- Issue Settings -----------------------------------------
           issue-inactive-days: 30
           issue-lock-reason: 'resolved'
           issue-comment: >
-            🔒 This issue has been automatically locked since there has been
+            This issue has been automatically locked since there has been
             no activity for 30 days after it was closed. Please open a new
             issue if you have a related problem or question.
 
-          # ── PR Settings ──────────────────────────────────────────────
+          # -- PR Settings --------------------------------------------
           pr-inactive-days: 30
           pr-lock-reason: 'resolved'
           pr-comment: >
-            🔒 This pull request has been automatically locked since there
+            This pull request has been automatically locked since there
             has been no activity for 30 days after it was closed. Please
             open a new PR if you'd like to continue this work.
 
-          # ── General ──────────────────────────────────────────────────
+          # -- General ------------------------------------------------
           # Process a limited number per run to avoid rate limits
           process-only: ''

@@ -6,7 +6,7 @@
 #
 # Uses the dependency-review-action's built-in license checking.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Edit the `deny-licenses` or `allow-licenses` list for your project.
 # ============================================================================
 
@@ -29,7 +29,7 @@ jobs:
       - name: Check Dependency Licenses
         uses: actions/dependency-review-action@v4
         with:
-          # ── License Configuration ────────────────────────────────
+          # -- License Configuration ------------------------------------
           # Option A: Deny specific licenses (blocklist approach)
           deny-licenses: GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, GPL-3.0-or-later, AGPL-3.0-only, AGPL-3.0-or-later
 

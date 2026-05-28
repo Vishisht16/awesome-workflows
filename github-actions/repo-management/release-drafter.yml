@@ -7,7 +7,7 @@
 #
 # Requires a `.github/release-drafter.yml` config file (see below).
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Edit `.github/release-drafter.yml` to define label categories and
 #     version resolution strategy.
 # ============================================================================
@@ -17,7 +17,7 @@ name: Release Drafter
 on:
   push:
     branches: [main, master]
-  workflow_dispatch: # Manual trigger — refreshes the draft
+  workflow_dispatch: # Manual trigger -- refreshes the draft
 
 permissions:
   contents: write
@@ -40,13 +40,13 @@ jobs:
 # tag-template: 'v$RESOLVED_VERSION'
 #
 # categories:
-#   - title: '🚀 Features'
+#   - title: 'Features'
 #     labels: ['enhancement', 'feature']
-#   - title: '🐛 Bug Fixes'
+#   - title: 'Bug Fixes'
 #     labels: ['bug', 'fix']
-#   - title: '📖 Documentation'
+#   - title: 'Documentation'
 #     labels: ['documentation', 'docs']
-#   - title: '🧹 Maintenance'
+#   - title: 'Maintenance'
 #     labels: ['chore', 'dependencies', 'ci/cd']
 #
 # change-template: '- $TITLE @$AUTHOR (#$NUMBER)'

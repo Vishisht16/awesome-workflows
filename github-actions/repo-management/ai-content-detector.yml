@@ -1,16 +1,16 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: AI Content Detector
 # ============================================================================
 # Reviews PR/issue descriptions and comments for signs of AI-generated
 # content (excessive emojis, em dashes, certain phrases). If detected,
 # posts a gentle advisory to double-check the content for accuracy.
 #
-# This is NOT a hard block — it's an advisory that helps maintainers
+# This is NOT a hard block -- it's an advisory that helps maintainers
 # and authors verify AI-assisted contributions are correct.
 #
 # Manual dispatch: Reviews all open issues and PRs for AI-generated content.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Adjust EMOJI_THRESHOLD, EM_DASH_THRESHOLD, and PHRASE_PATTERNS.
 # ============================================================================
 
@@ -23,7 +23,7 @@ on:
     types: [opened, edited]
   issue_comment:
     types: [created]
-  workflow_dispatch: # Manual trigger — reviews all open issues and PRs
+  workflow_dispatch: # Manual trigger -- reviews all open issues and PRs
 
 jobs:
   detect-ai-content:
@@ -36,10 +36,10 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── Configuration ─────────────────────────────────────────
+            // -- Configuration -----------------------------------------
             // Minimum thresholds to trigger the advisory
             const EMOJI_THRESHOLD = 5;        // Number of emojis in the text
-            const EM_DASH_THRESHOLD = 3;      // Number of em dashes (—) in the text
+            const EM_DASH_THRESHOLD = 3;      // Number of em dashes (--) in the text
             const PHRASE_THRESHOLD = 2;        // Number of AI-ish phrases found
             const SCORE_THRESHOLD = 6;         // Combined score to trigger advisory
             // Individual weights
@@ -75,10 +75,10 @@ jobs:
             // Emoji detection regex (covers most common emoji ranges)
             const EMOJI_REGEX = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1FA00}-\u{1FA9F}\u{200D}\u{20E3}]/gu;
 
-            // ── Bot check label to avoid duplicate alerts ─────────────
+            // -- Bot check label to avoid duplicate alerts ------------
             const ADVISORY_MARKER = "<!-- ai-content-check -->";
 
-            // ── Core analysis function ────────────────────────────────
+            // -- Core analysis function --------------------------------
             function analyzeText(text) {
               if (!text || text.trim().length === 0) return null;
 
@@ -98,7 +98,7 @@ jobs:
               if (emDashes >= EM_DASH_THRESHOLD) {
                 const excess = emDashes - EM_DASH_THRESHOLD + 1;
                 score += excess * EM_DASH_WEIGHT;
-                signals.push(`${emDashes} em dashes (—) detected`);
+                signals.push(`${emDashes} em dashes detected`);
               }
 
               // Check for AI-ish phrases
@@ -112,12 +112,12 @@ jobs:
               return { score, signals };
             }
 
-            // ── Advisory comment function ─────────────────────────────
+            // -- Advisory comment function -----------------------------
             async function postAdvisory(itemNumber, author, signals, isComment) {
               const target = isComment ? "comment" : "description";
               const body = [
                 ADVISORY_MARKER,
-                `🤖 **AI Content Advisory**`,
+                `**AI Content Advisory**`,
                 ``,
                 `This ${target} has signals that suggest it may be AI-generated:`,
                 ...signals.map(s => `- ${s}`),
@@ -128,7 +128,7 @@ jobs:
                 `doesn't reflect your intent, please let the maintainers know ` +
                 `by replying here.`,
                 ``,
-                `*This is an automated heuristic check — false positives are possible. ` +
+                `*This is an automated heuristic check -- false positives are possible. ` +
                 `AI-assisted contributions are welcome as long as they are accurate.*`
               ].join("\n");
 
@@ -140,7 +140,7 @@ jobs:
               });
             }
 
-            // ── Check if we already posted an advisory ────────────────
+            // -- Check if we already posted an advisory ----------------
             async function hasExistingAdvisory(itemNumber) {
               const comments = await github.rest.issues.listComments({
                 owner: context.repo.owner,
@@ -151,7 +151,7 @@ jobs:
               return comments.data.some(c => c.body.includes(ADVISORY_MARKER));
             }
 
-            // ── Process a single item ─────────────────────────────────
+            // -- Process a single item ---------------------------------
             async function processItem(number, text, author, isComment) {
               const result = analyzeText(text);
               if (!result || result.score < SCORE_THRESHOLD) {
@@ -172,7 +172,7 @@ jobs:
               await postAdvisory(number, author, result.signals, isComment);
             }
 
-            // ── Dispatch mode: review all open issues & PRs ───────────
+            // -- Dispatch mode: review all open issues & PRs -----------
             if (context.eventName === "workflow_dispatch") {
               console.log("Manual dispatch: reviewing all open issues and PRs...");
 
@@ -198,7 +198,7 @@ jobs:
               return;
             }
 
-            // ── Event mode: issue_comment ─────────────────────────────
+            // -- Event mode: issue_comment -----------------------------
             if (context.eventName === "issue_comment") {
               const comment = context.payload.comment;
               // Don't check bot comments
@@ -212,7 +212,7 @@ jobs:
               return;
             }
 
-            // ── Event mode: issue or PR opened/edited ─────────────────
+            // -- Event mode: issue or PR opened/edited -----------------
             const item = context.payload.issue || context.payload.pull_request;
             if (item.user.type === "Bot") return;
             await processItem(

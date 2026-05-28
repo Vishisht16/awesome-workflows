@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: WIP / Draft Enforcer
 # ============================================================================
 # Fails CI if a PR title contains WIP markers, preventing accidental merge
@@ -6,7 +6,7 @@
 #
 # Manual dispatch: Reviews ALL open PRs for WIP markers.
 #
-# Portability: ✅ Drop-in
+# Portability: Drop-in
 # ============================================================================
 
 name: WIP / Draft Enforcer
@@ -14,7 +14,7 @@ name: WIP / Draft Enforcer
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
-  workflow_dispatch: # Manual trigger — reviews all open PRs
+  workflow_dispatch: # Manual trigger -- reviews all open PRs
 
 jobs:
   wip-check:
@@ -26,7 +26,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── WIP Patterns ──────────────────────────────────────────
+            // -- WIP Patterns ------------------------------------------
             const WIP_PATTERNS = [
               /^\[WIP\]/i,
               /^WIP:/i,
@@ -44,18 +44,18 @@ jobs:
             async function checkPR(pr) {
               if (isWIP(pr)) {
                 const reason = pr.draft ? "marked as Draft" : `title contains WIP marker`;
-                console.log(`PR #${pr.number}: ❌ ${reason}`);
+                console.log(`PR #${pr.number}: [FAIL] ${reason}`);
                 core.setFailed(
                   `PR #${pr.number} is work-in-progress (${reason}). ` +
                   `Remove the WIP marker or mark as Ready for Review to proceed.`
                 );
                 return false;
               }
-              console.log(`PR #${pr.number}: ✅ Not WIP.`);
+              console.log(`PR #${pr.number}: [OK] Not WIP.`);
               return true;
             }
 
-            // ── Dispatch mode ─────────────────────────────────────────
+            // -- Dispatch mode -----------------------------------------
             if (context.eventName === "workflow_dispatch") {
               console.log("Manual dispatch: reviewing all open PRs...");
               const prs = await github.paginate(
@@ -80,5 +80,5 @@ jobs:
               return;
             }
 
-            // ── Event mode ────────────────────────────────────────────
+            // -- Event mode --------------------------------------------
             await checkPR(context.payload.pull_request);

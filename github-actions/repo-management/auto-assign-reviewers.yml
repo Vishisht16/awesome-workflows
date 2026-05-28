@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: Auto-Assign Reviewers
 # ============================================================================
 # Automatically assigns reviewers to new PRs using round-robin selection
@@ -6,7 +6,7 @@
 #
 # Manual dispatch: Assigns reviewers to ALL open PRs missing reviewers.
 #
-# Portability: ⚙️ Needs Setup
+# Portability: Needs Setup
 #   - Edit REVIEWERS list with your team's GitHub usernames.
 #   - For team-based assignment, use a PAT with read:org scope.
 # ============================================================================
@@ -16,7 +16,7 @@ name: Auto-Assign Reviewers
 on:
   pull_request:
     types: [opened, ready_for_review]
-  workflow_dispatch: # Manual trigger — reviews all open PRs
+  workflow_dispatch: # Manual trigger -- reviews all open PRs
 
 jobs:
   assign-reviewers:
@@ -28,7 +28,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── Configuration ─────────────────────────────────────────
+            // -- Configuration -----------------------------------------
             // Add your team members' GitHub usernames here
             const REVIEWERS = [
               "maintainer1",
@@ -37,7 +37,7 @@ jobs:
             ];
             // Number of reviewers to assign per PR
             const NUM_REVIEWERS = 1;
-            // ──────────────────────────────────────────────────────────
+            // --------------------------------------------------------------
 
             async function assignReviewers(pr) {
               // Skip draft PRs
@@ -85,7 +85,7 @@ jobs:
               console.log(`PR #${pr.number}: Assigned reviewers: ${selected.join(", ")}`);
             }
 
-            // ── Dispatch mode ─────────────────────────────────────────
+            // -- Dispatch mode -----------------------------------------
             if (context.eventName === "workflow_dispatch") {
               console.log("Manual dispatch: reviewing all open PRs...");
               const prs = await github.paginate(
@@ -104,5 +104,5 @@ jobs:
               return;
             }
 
-            // ── Event mode ────────────────────────────────────────────
+            // -- Event mode --------------------------------------------
             await assignReviewers(context.payload.pull_request);

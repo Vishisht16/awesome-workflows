@@ -4,7 +4,7 @@
 # Reviews dependency changes in PRs and fails if any newly added dependency
 # has known vulnerabilities. Uses GitHub's advisory database.
 #
-# Portability: ✅ Drop-in
+# Portability: Drop-in
 #   - Works for npm, pip, Maven, Go modules, Cargo, etc.
 # ============================================================================
 

@@ -4,7 +4,7 @@
 # Creates a GitHub Release with auto-generated release notes whenever a
 # new version tag (v*) is pushed.
 #
-# Portability: ✅ Drop-in
+# Portability: Drop-in
 # ============================================================================
 
 name: Publish Release on Tag
@@ -72,4 +72,4 @@ jobs:
               draft: false
             });
 
-            console.log(`✅ Release created: ${release.html_url}`);
+            console.log(`[OK] Release created: ${release.html_url}`);

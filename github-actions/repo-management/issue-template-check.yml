@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: Issue Template Checker
 # ============================================================================
 # Validates that newly opened issues actually filled out the issue template
@@ -7,7 +7,7 @@
 #
 # Manual dispatch: Reviews ALL open issues for template compliance.
 #
-# Portability: 🔧 Configurable
+# Portability: Configurable
 #   - Adjust MIN_BODY_LENGTH for your needs.
 #   - Edit REQUIRED_SECTIONS to match your issue template's headings.
 # ============================================================================
@@ -17,7 +17,7 @@ name: Issue Template Checker
 on:
   issues:
     types: [opened]
-  workflow_dispatch: # Manual trigger — reviews all open issues
+  workflow_dispatch: # Manual trigger -- reviews all open issues
 
 jobs:
   check-template:
@@ -29,7 +29,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── Configuration ─────────────────────────────────────────
+            // -- Configuration -----------------------------------------
             const MIN_BODY_LENGTH = 50;
             const REQUIRED_SECTIONS = [
               "describe",
@@ -37,7 +37,7 @@ jobs:
               "expected behavior"
             ];
             const LABEL = "needs-more-info";
-            // ──────────────────────────────────────────────────────────
+            // --------------------------------------------------------------
 
             async function checkIssue(issue) {
               const body = issue.body || "";
@@ -80,7 +80,7 @@ jobs:
               console.log(`Issue #${issue.number}: Failed template check.`);
 
               const comment = [
-                `@${author} 👋 Thanks for opening this issue!`,
+                `@${author} Thanks for opening this issue!`,
                 ``,
                 `However, it looks like some information is missing:`,
                 ``,
@@ -108,7 +108,7 @@ jobs:
               });
             }
 
-            // ── Dispatch mode ─────────────────────────────────────────
+            // -- Dispatch mode -----------------------------------------
             if (context.eventName === "workflow_dispatch") {
               console.log("Manual dispatch: reviewing all open issues...");
               const issues = await github.paginate(
@@ -128,5 +128,5 @@ jobs:
               return;
             }
 
-            // ── Event mode ────────────────────────────────────────────
+            // -- Event mode --------------------------------------------
             await checkIssue(context.payload.issue);

@@ -1,11 +1,11 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: Weekly Activity Digest
 # ============================================================================
 # Generates a weekly summary of repository activity and sends it to a
 # Slack or Discord webhook. Covers issues opened/closed, PRs merged,
 # and new contributors.
 #
-# Portability: ⚙️ Needs Setup
+# Portability: Needs Setup
 #   - Create a repo secret `WEBHOOK_URL` with your Slack or Discord webhook.
 #   - Adjust WEBHOOK_PLATFORM to "slack" or "discord".
 # ============================================================================
@@ -31,10 +31,10 @@ jobs:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         with:
           script: |
-            // ── Configuration ─────────────────────────────────────────
+            // -- Configuration -----------------------------------------
             const WEBHOOK_PLATFORM = "discord"; // "slack" or "discord"
             const DAYS_BACK = 7;
-            // ──────────────────────────────────────────────────────────
+            // --------------------------------------------------------------
 
             const webhookUrl = process.env.WEBHOOK_URL;
             if (!webhookUrl) {
@@ -48,7 +48,7 @@ jobs:
 
             const repo = `${context.repo.owner}/${context.repo.repo}`;
 
-            // ── Gather Stats ──────────────────────────────────────────
+            // -- Gather Stats ------------------------------------------
             // Issues opened this week
             const issuesOpened = await github.rest.search.issuesAndPullRequests({
               q: `repo:${repo} is:issue created:>=${sinceISO}`,
@@ -82,20 +82,20 @@ jobs:
 
             console.log("Weekly stats:", JSON.stringify(stats));
 
-            // ── Format Message ────────────────────────────────────────
+            // -- Format Message ----------------------------------------
             const lines = [
-              `📊 **Weekly Activity Digest** — ${repo}`,
-              `_${since.toDateString()} → ${new Date().toDateString()}_`,
+              `**Weekly Activity Digest** -- ${repo}`,
+              `_${since.toDateString()} -> ${new Date().toDateString()}_`,
               ``,
-              `🐛 Issues opened: **${stats.issuesOpened}**`,
-              `✅ Issues closed: **${stats.issuesClosed}**`,
-              `🔀 PRs opened: **${stats.prsOpened}**`,
-              `🚀 PRs merged: **${stats.prsMerged}**`,
+              `Issues opened: **${stats.issuesOpened}**`,
+              `Issues closed: **${stats.issuesClosed}**`,
+              `PRs opened: **${stats.prsOpened}**`,
+              `PRs merged: **${stats.prsMerged}**`,
             ];
 
             const text = lines.join("\n");
 
-            // ── Send Webhook ──────────────────────────────────────────
+            // -- Send Webhook ------------------------------------------
             let payload;
             if (WEBHOOK_PLATFORM === "slack") {
               payload = JSON.stringify({ text: text });
@@ -111,12 +111,12 @@ jobs:
             });
 
             if (response.ok) {
-              console.log(`✅ Digest sent to ${WEBHOOK_PLATFORM}.`);
+              console.log(`[OK] Digest sent to ${WEBHOOK_PLATFORM}.`);
             } else {
               core.setFailed(`Webhook failed: ${response.status} ${response.statusText}`);
             }
 
             // Also post to workflow summary
-            core.summary.addHeading("📊 Weekly Activity Digest", 2);
+            core.summary.addHeading("Weekly Activity Digest", 2);
             core.summary.addRaw(text);
             await core.summary.write();

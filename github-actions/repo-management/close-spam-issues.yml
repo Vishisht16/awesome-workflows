@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: Auto-Close Spam Issues
 # ============================================================================
 # Detects and closes issues that are likely spam based on heuristics:
@@ -8,7 +8,7 @@
 #
 # Manual dispatch: Reviews ALL open issues for spam.
 #
-# Portability: ✅ Drop-in
+# Portability: Drop-in
 # ============================================================================
 
 name: Auto-Close Spam Issues
@@ -16,7 +16,7 @@ name: Auto-Close Spam Issues
 on:
   issues:
     types: [opened]
-  workflow_dispatch: # Manual trigger — reviews all open issues
+  workflow_dispatch: # Manual trigger -- reviews all open issues
 
 jobs:
   spam-check:
@@ -103,7 +103,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: "🚫 This issue has been automatically flagged and closed as spam.\n\nIf this was a mistake, please contact a maintainer to reopen it."
+                body: "This issue has been automatically flagged and closed as spam.\n\nIf this was a mistake, please contact a maintainer to reopen it."
               });
 
               await github.rest.issues.update({
@@ -115,7 +115,7 @@ jobs:
               });
             }
 
-            // ── Dispatch mode ─────────────────────────────────────────
+            // -- Dispatch mode -----------------------------------------
             if (context.eventName === "workflow_dispatch") {
               console.log("Manual dispatch: reviewing all open issues for spam...");
               const issues = await github.paginate(
@@ -135,5 +135,5 @@ jobs:
               return;
             }
 
-            // ── Event mode ────────────────────────────────────────────
+            // -- Event mode --------------------------------------------
             await checkSpam(context.payload.issue);

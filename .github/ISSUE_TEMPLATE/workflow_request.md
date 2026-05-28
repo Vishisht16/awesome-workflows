@@ -1,12 +1,12 @@
 ---
-name: "💡 Workflow Request"
+name: "Workflow Request"
 description: "Request a workflow for a specific use case that you'd like someone to build"
 title: "request: [Describe use case]"
 labels: ["enhancement", "help wanted"]
 assignees: []
 ---
 
-## 💡 Workflow Request
+## Workflow Request
 
 ### What is the use case?
 Please describe the problem you are trying to solve or the automation you'd like to achieve. 

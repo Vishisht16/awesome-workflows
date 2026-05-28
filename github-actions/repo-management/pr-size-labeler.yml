@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Workflow: PR Size Labeler
 # ============================================================================
 # Automatically labels PRs based on total lines changed.
@@ -6,7 +6,7 @@
 #
 # Manual dispatch: Reviews ALL open PRs and applies/updates size labels.
 #
-# Portability: ✅ Drop-in
+# Portability: Drop-in
 # ============================================================================
 
 name: PR Size Labeler
@@ -14,7 +14,7 @@ name: PR Size Labeler
 on:
   pull_request:
     types: [opened, synchronize]
-  workflow_dispatch: # Manual trigger — reviews all open PRs
+  workflow_dispatch: # Manual trigger -- reviews all open PRs
 
 jobs:
   size-label:
@@ -26,7 +26,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ── Size Thresholds ───────────────────────────────────────
+            // -- Size Thresholds ---------------------------------------
             const SIZE_LABELS = [
               { label: "size/XS",  max: 10   },
               { label: "size/S",   max: 50   },
@@ -74,10 +74,10 @@ jobs:
                 });
               }
 
-              console.log(`PR #${pr.number}: ${totalChanges} lines changed → ${sizeLabel}`);
+              console.log(`PR #${pr.number}: ${totalChanges} lines changed -> ${sizeLabel}`);
             }
 
-            // ── Dispatch mode ─────────────────────────────────────────
+            // -- Dispatch mode -----------------------------------------
             if (context.eventName === "workflow_dispatch") {
               console.log("Manual dispatch: reviewing all open PRs...");
               const prs = await github.paginate(
@@ -96,5 +96,5 @@ jobs:
               return;
             }
 
-            // ── Event mode ────────────────────────────────────────────
+            // -- Event mode --------------------------------------------
             await labelPR(context.payload.pull_request);

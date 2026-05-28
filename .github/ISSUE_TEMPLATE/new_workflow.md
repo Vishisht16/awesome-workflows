@@ -1,12 +1,12 @@
 ---
-name: "✨ Submit a New Workflow"
+name: "Submit a New Workflow"
 description: "Suggest and submit a brand new workflow to the repository"
 title: "feat: add [Workflow Name] workflow"
 labels: ["enhancement", "new-workflow"]
 assignees: []
 ---
 
-## ✨ New Workflow Submission
+## New Workflow Submission
 
 ### Describe the workflow
 What does this workflow do? Why is it useful for repository management or CI/CD?
@@ -17,9 +17,9 @@ _Example: `github-actions/repo-management/`_
 
 ### Portability Rating
 How portable is this workflow?
-- [ ] ✅ **Drop-in:** No changes needed to use it.
-- [ ] 🔧 **Configurable:** Works immediately but requires tweaking variables.
-- [ ] ⚙️ **Needs Setup:** Requires external secrets, API keys, etc.
+- [ ] **[D] Drop-in:** No changes needed to use it.
+- [ ] **[C] Configurable:** Works immediately but requires tweaking variables.
+- [ ] **[S] Needs Setup:** Requires external secrets, API keys, etc.
 
 ### Prerequisites (if any)
 Does this workflow require any specific repository settings, third-party accounts, or GitHub secrets to function?

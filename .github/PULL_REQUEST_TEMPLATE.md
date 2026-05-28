@@ -6,12 +6,12 @@ Fixes # (issue number)
 
 ## Type of change
 <!-- Please check the relevant option -->
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New workflow (adds a new `.yml` workflow to the collection)
-- [ ] 📝 Documentation update (updates to READMEs or comments)
-- [ ] 🔧 Workflow improvement (enhances an existing workflow)
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New workflow (adds a new `.yml` workflow to the collection)
+- [ ] Documentation update (updates to READMEs or comments)
+- [ ] Workflow improvement (enhances an existing workflow)
 
-## 📋 Checklist:
+## Checklist:
 <!-- Please make sure all the following items are checked before submitting! -->
 - [ ] My code follows the style guidelines of this project
 - [ ] I have included clear and descriptive comments at the top of the workflow file
@@ -19,5 +19,5 @@ Fixes # (issue number)
 - [ ] My PR title follows Conventional Commits (e.g., `feat: add awesome workflow`, `fix: correct typo in xyz`)
 - [ ] I have tested this workflow in a real repository and confirmed it works
 
-## ⚠️ Important Note for New Workflows
-If you are adding a new workflow, did you remember to add the **Portability Rating** (✅ Drop-in, 🔧 Configurable, or ⚙️ Needs Setup) in the README and the workflow comments?
+## Important Note for New Workflows
+If you are adding a new workflow, did you remember to add the **Portability Rating** ([D] Drop-in, [C] Configurable, or [S] Needs Setup) in the README and the workflow comments?
