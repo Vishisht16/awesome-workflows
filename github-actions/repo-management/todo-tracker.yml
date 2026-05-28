@@ -1,0 +1,164 @@
+# ============================================================================
+# Workflow: TODO/FIXME Tracker
+# ============================================================================
+# Scans PRs for new TODO, FIXME, HACK, or XXX comments and posts a
+# summary comment on the PR so reviewers are aware of outstanding items.
+#
+# Manual dispatch: Scans the entire codebase and posts a summary.
+#
+# Portability: ✅ Drop-in
+#   - Optionally customize KEYWORDS.
+# ============================================================================
+
+name: TODO/FIXME Tracker
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch: # Manual trigger — full repo scan
+
+jobs:
+  track-todos:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for TODO/FIXME Comments
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+
+            // ── Configuration ─────────────────────────────────────────
+            const KEYWORDS = ["TODO", "FIXME", "HACK", "XXX", "BUG"];
+            const MAX_RESULTS = 30;
+            // ──────────────────────────────────────────────────────────
+
+            const pattern = KEYWORDS.join("|");
+            const MARKER = "<!-- todo-tracker -->";
+
+            if (context.eventName === "pull_request") {
+              // Scan only the diff for NEW occurrences
+              const base = context.payload.pull_request.base.sha;
+              const head = context.payload.pull_request.head.sha;
+
+              let diffOutput;
+              try {
+                diffOutput = execSync(
+                  `git diff ${base}..${head} -U0 --diff-filter=A`,
+                  { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }
+                );
+              } catch {
+                console.log("Could not compute diff. Skipping.");
+                return;
+              }
+
+              // Parse added lines for TODO/FIXME keywords
+              const regex = new RegExp(`\\b(${pattern})\\b`, 'gi');
+              const findings = [];
+              let currentFile = null;
+
+              for (const line of diffOutput.split('\n')) {
+                if (line.startsWith('diff --git')) {
+                  const match = line.match(/b\/(.+)$/);
+                  if (match) currentFile = match[1];
+                } else if (line.startsWith('+') && !line.startsWith('+++')) {
+                  const content = line.substring(1);
+                  const matches = [...content.matchAll(regex)];
+                  if (matches.length > 0 && currentFile) {
+                    findings.push({
+                      file: currentFile,
+                      keyword: matches[0][1].toUpperCase(),
+                      line: content.trim()
+                    });
+                  }
+                }
+              }
+
+              if (findings.length === 0) {
+                console.log("No new TODO/FIXME comments found in this PR.");
+                return;
+              }
+
+              const limited = findings.slice(0, MAX_RESULTS);
+              const items = limited.map(f =>
+                `| \`${f.keyword}\` | \`${f.file}\` | ${f.line.substring(0, 100)} |`
+              ).join("\n");
+
+              const body = [
+                MARKER,
+                `📝 **Found ${findings.length} new TODO/FIXME comment(s) in this PR:**`,
+                ``,
+                `| Keyword | File | Line |`,
+                `|---------|------|------|`,
+                items,
+                findings.length > MAX_RESULTS
+                  ? `\n*...and ${findings.length - MAX_RESULTS} more.*`
+                  : '',
+                ``,
+                `*Consider resolving these before merging, or ensure they are tracked as issues.*`
+              ].join("\n");
+
+              // Check for existing tracker comment
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                per_page: 30
+              });
+
+              const existing = comments.data.find(c => c.body.includes(MARKER));
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body: body
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  body: body
+                });
+              }
+
+              console.log(`Posted summary: ${findings.length} TODO/FIXME item(s).`);
+              return;
+            }
+
+            // ── Manual dispatch: full repo scan ───────────────────────
+            let output;
+            try {
+              output = execSync(
+                `grep -rn --include="*.{js,ts,py,go,rs,java,rb,cs,cpp,c,h,yml,yaml}" -E "\\b(${pattern})\\b" . || true`,
+                { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }
+              );
+            } catch {
+              output = "";
+            }
+
+            const lines = output.trim().split('\n').filter(Boolean);
+            console.log(`Full repo scan: found ${lines.length} TODO/FIXME item(s).`);
+
+            // Post to workflow summary
+            const core = require('@actions/core');
+            if (lines.length === 0) {
+              core.summary.addHeading('📝 TODO/FIXME Report', 2);
+              core.summary.addRaw('✅ No TODO/FIXME comments found in the codebase.');
+            } else {
+              core.summary.addHeading(`📝 TODO/FIXME Report — ${lines.length} item(s)`, 2);
+              const limited = lines.slice(0, 50);
+              core.summary.addCodeBlock(limited.join('\n'), 'text');
+              if (lines.length > 50) {
+                core.summary.addRaw(`\n*...and ${lines.length - 50} more.*`);
+              }
+            }
+            await core.summary.write();

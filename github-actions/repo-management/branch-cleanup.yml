@@ -1,0 +1,124 @@
+# ============================================================================
+# Workflow: Branch Cleanup
+# ============================================================================
+# Deletes branches that have been merged or are stale (no commits for 90+
+# days). Automatically cleans up after PR merge, and runs weekly to catch
+# abandoned branches.
+#
+# Portability: 🔧 Configurable
+#   - Adjust STALE_DAYS and PROTECTED_PATTERNS to match your branching model.
+# ============================================================================
+
+name: Branch Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    # Runs every Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch: # Manual trigger — full branch audit
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Clean Up Branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // ── Configuration ─────────────────────────────────────────
+            const STALE_DAYS = 90;
+            // Branches matching these patterns are NEVER deleted
+            const PROTECTED_PATTERNS = [
+              /^main$/,
+              /^master$/,
+              /^develop$/,
+              /^release\/.*/,
+              /^hotfix\/.*/,
+            ];
+            // ──────────────────────────────────────────────────────────
+
+            function isProtected(branchName) {
+              return PROTECTED_PATTERNS.some(p => p.test(branchName));
+            }
+
+            // ── PR merged: delete head branch ─────────────────────────
+            if (context.eventName === "pull_request") {
+              const pr = context.payload.pull_request;
+              if (!pr.merged) {
+                console.log(`PR #${pr.number} was closed without merging. Skipping.`);
+                return;
+              }
+
+              const branch = pr.head.ref;
+              if (isProtected(branch)) {
+                console.log(`Branch "${branch}" is protected. Skipping.`);
+                return;
+              }
+
+              // Skip if the branch is from a fork
+              if (pr.head.repo.full_name !== pr.base.repo.full_name) {
+                console.log(`Branch "${branch}" is from a fork. Skipping.`);
+                return;
+              }
+
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `heads/${branch}`
+                });
+                console.log(`✅ Deleted merged branch: ${branch}`);
+              } catch (e) {
+                console.log(`Could not delete branch "${branch}": ${e.message}`);
+              }
+              return;
+            }
+
+            // ── Scheduled / Manual: find and delete stale branches ────
+            console.log(`Scanning for branches with no activity for ${STALE_DAYS}+ days...`);
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - STALE_DAYS);
+
+            const branches = await github.paginate(
+              github.rest.repos.listBranches,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100
+              }
+            );
+
+            let deleted = 0;
+            for (const branch of branches) {
+              if (isProtected(branch.name)) continue;
+
+              // Get the latest commit date
+              const { data: commit } = await github.rest.repos.getCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: branch.commit.sha
+              });
+
+              const lastActivity = new Date(commit.commit.committer.date);
+              if (lastActivity > cutoff) continue;
+
+              const daysOld = Math.floor((new Date() - lastActivity) / (1000 * 60 * 60 * 24));
+
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `heads/${branch.name}`
+                });
+                console.log(`✅ Deleted stale branch: ${branch.name} (${daysOld} days old)`);
+                deleted++;
+              } catch (e) {
+                console.log(`Could not delete "${branch.name}": ${e.message}`);
+              }
+            }
+
+            console.log(`Done. Deleted ${deleted} stale branch(es).`);

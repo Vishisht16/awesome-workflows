@@ -1,0 +1,56 @@
+# ============================================================================
+# Workflow: Broken Link Checker
+# ============================================================================
+# Scans all markdown files in the repository for broken links (404s)
+# on a weekly schedule and on pushes that modify markdown files.
+#
+# Portability: ✅ Drop-in
+# ============================================================================
+
+name: Broken Link Checker
+
+on:
+  push:
+    branches: [main, master]
+    paths: ['**.md']
+  schedule:
+    # Runs every Wednesday at 07:00 UTC
+    - cron: '0 7 * * 3'
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check for Broken Links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Scan all markdown files
+          args: >
+            --verbose
+            --no-progress
+            --accept 100..=399
+            --exclude-mail
+            --exclude "^https://github\.com/.*/(issues|pull)/\d+"
+            --timeout 30
+            '**/*.md'
+          # Don't fail the workflow — just report
+          fail: false
+          # Output format
+          format: markdown
+          # Write results to a file for the summary
+          output: ./lychee-report.md
+
+      - name: Post Results Summary
+        if: always()
+        run: |
+          if [ -f ./lychee-report.md ]; then
+            echo "## 🔗 Broken Link Report" >> $GITHUB_STEP_SUMMARY
+            cat ./lychee-report.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## 🔗 Broken Link Report" >> $GITHUB_STEP_SUMMARY
+            echo "✅ No broken links found." >> $GITHUB_STEP_SUMMARY
+          fi

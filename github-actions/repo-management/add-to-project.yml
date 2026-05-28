@@ -1,0 +1,35 @@
+# ============================================================================
+# Workflow: Add Issues/PRs to Project Board
+# ============================================================================
+# Automatically adds new issues and PRs to a specified GitHub Projects (v2)
+# board. Keeps the project board populated without manual effort.
+#
+# Portability: ⚙️ Needs Setup
+#   - Create a PAT with `project` scope and add it as a repo secret
+#     named `PROJECT_TOKEN`.
+#   - Set the PROJECT_URL to your GitHub Projects (v2) board URL.
+# ============================================================================
+
+name: Add to Project Board
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+  workflow_dispatch: # Manual trigger — adds all open issues/PRs to the project
+
+jobs:
+  add-to-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add to Project
+        uses: actions/add-to-project@v1
+        with:
+          # ── Configuration ────────────────────────────────────────
+          # Replace with your GitHub Projects (v2) board URL
+          project-url: https://github.com/orgs/YOUR_ORG/projects/1
+          # PAT with project scope (the default GITHUB_TOKEN lacks project access)
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          # Optionally label items that were auto-added
+          # labeled: auto-added

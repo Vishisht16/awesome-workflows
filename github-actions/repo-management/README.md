@@ -1,6 +1,6 @@
 # 🗂️ GitHub Actions — Repository Management
 
-A collection of **25 ready-to-use GitHub Action workflows** for automating repository management. Covers triage, labeling, quality enforcement, security scanning, release automation, lifecycle cleanup, assignment, and community onboarding.
+A collection of **31 ready-to-use GitHub Action workflows** for automating repository management. Covers triage, labeling, quality enforcement, security scanning, release automation, lifecycle cleanup, repo hygiene, assignment, community onboarding, and reporting.
 
 > **Quick start:** Copy any `.yml` file into your repo's `.github/workflows/` directory, commit, and push.
 
@@ -86,6 +86,22 @@ Most workflows support **manual triggering** via `workflow_dispatch`. When run m
 | # | Workflow | File | Description | Portability |
 |---|---------|------|-------------|:-----------:|
 | 25 | [AI Content Detector](#25-ai-content-detector) | `ai-content-detector.yml` | Reviews PR/issue descriptions and comments for signs of AI-generated content and posts an advisory. | 🔧 Configurable |
+
+### 🧹 Repository Hygiene
+
+| # | Workflow | File | Description | Portability |
+|---|---------|------|-------------|:-----------:|
+| 26 | [Branch Cleanup](#26-branch-cleanup) | `branch-cleanup.yml` | Deletes branches that have been merged or are stale (no commits for 90+ days). | 🔧 Configurable |
+| 27 | [Old Workflow Run Cleanup](#27-old-workflow-run-cleanup) | `cleanup-workflow-runs.yml` | Periodically deletes old workflow run logs and artifacts to save storage. | 🔧 Configurable |
+| 28 | [Broken Link Checker](#28-broken-link-checker) | `broken-links.yml` | Scans all markdown files in the repository for broken links (404s) on a weekly schedule. | ✅ Drop-in |
+| 29 | [TODO/FIXME Tracker](#29-todofixme-tracker) | `todo-tracker.yml` | Scans PRs for new `TODO` or `FIXME` comments and posts a summary comment on the PR. | ✅ Drop-in |
+
+### 📊 Reporting & Notifications
+
+| # | Workflow | File | Description | Portability |
+|---|---------|------|-------------|:-----------:|
+| 30 | [Weekly Activity Digest](#30-weekly-activity-digest) | `weekly-digest.yml` | Generates a weekly summary of issues opened/closed, PRs merged, and contributors, posted to Slack/Discord. | ⚙️ Needs Setup |
+| 31 | [Add Issues/PRs to Project Board](#31-add-issuesprs-to-project-board) | `add-to-project.yml` | Automatically adds new issues and PRs to a specified GitHub Project board. | ⚙️ Needs Setup |
 
 ---
 
@@ -342,6 +358,66 @@ Most workflows support **manual triggering** via `workflow_dispatch`. When run m
 - **What it does:** Uses a scoring system that weighs emoji density, em dash frequency, and known AI phrases (e.g., "I'd be happy to", "delve into"). If the score exceeds the threshold, posts a gentle advisory asking the author and maintainers to double-check for accuracy.
 - **Manual dispatch:** Reviews all open issues and PRs for AI-generated content.
 - **Portability:** 🔧 Adjust `EMOJI_THRESHOLD`, `EM_DASH_THRESHOLD`, `PHRASE_PATTERNS`, and `SCORE_THRESHOLD`.
+
+---
+
+### 🧹 Repository Hygiene
+
+#### 26. Branch Cleanup
+> Deletes merged and stale branches.
+
+- **Trigger:** `pull_request: [closed]` + Scheduled (weekly cron) + `workflow_dispatch`
+- **What it does:** Automatically deletes the head branch after a PR is merged. On schedule, finds and deletes branches with no commits for 90+ days. Protected branch patterns prevent accidental deletion of `main`, `develop`, `release/*`, etc.
+- **Manual dispatch:** Full branch audit — scans all branches for staleness.
+- **Portability:** 🔧 Adjust `STALE_DAYS` and `PROTECTED_PATTERNS` to match your branching model.
+
+---
+
+#### 27. Old Workflow Run Cleanup
+> Cleans up old workflow run logs and artifacts.
+
+- **Trigger:** Scheduled (weekly cron) + `workflow_dispatch`
+- **What it does:** Iterates all workflows in the repo and deletes completed runs older than the retention period (default: 30 days). Helps save storage on active repositories.
+- **Portability:** 🔧 Adjust `RETENTION_DAYS`.
+
+---
+
+#### 28. Broken Link Checker
+> Uses [lychee](https://github.com/lycheeverse/lychee-action) to scan markdown files for broken links.
+
+- **Trigger:** `push` to main (markdown files only) + Scheduled (weekly cron) + `workflow_dispatch`
+- **What it does:** Crawls all `.md` files and reports broken links (404s). Excludes GitHub issue/PR links (which require auth) and email addresses. Outputs a markdown report to the workflow summary.
+- **Portability:** ✅ Works as-is.
+
+---
+
+#### 29. TODO/FIXME Tracker
+> Surfaces new TODO/FIXME comments introduced in PRs.
+
+- **Trigger:** `pull_request: [opened, synchronize]` + `workflow_dispatch`
+- **What it does:** Diffs the PR to find newly added `TODO`, `FIXME`, `HACK`, `XXX`, or `BUG` comments. Posts/updates a summary table on the PR. Manual dispatch does a full repo scan.
+- **Manual dispatch:** Full codebase grep — results posted to workflow summary.
+- **Portability:** ✅ Works as-is. Optionally customize `KEYWORDS`.
+
+---
+
+### 📊 Reporting & Notifications
+
+#### 30. Weekly Activity Digest
+> Posts a weekly summary of repository activity to Slack or Discord.
+
+- **Trigger:** Scheduled (weekly cron — Fridays) + `workflow_dispatch`
+- **What it does:** Queries the GitHub search API for issues opened/closed, PRs opened/merged during the past 7 days. Formats a digest and sends it via webhook. Also writes to workflow summary.
+- **Portability:** ⚙️ Requires a `WEBHOOK_URL` repo secret (Slack or Discord). Set `WEBHOOK_PLATFORM` to `"slack"` or `"discord"`.
+
+---
+
+#### 31. Add Issues/PRs to Project Board
+> Uses [`actions/add-to-project`](https://github.com/actions/add-to-project) to auto-populate Project boards.
+
+- **Trigger:** `issues: [opened]` + `pull_request: [opened]` + `workflow_dispatch`
+- **What it does:** Automatically adds every new issue and PR to a specified GitHub Projects (v2) board.
+- **Portability:** ⚙️ Requires the Project URL and a PAT with `project` scope stored as `PROJECT_TOKEN` secret.
 
 ---
 
