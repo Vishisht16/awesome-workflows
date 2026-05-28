@@ -1,0 +1,94 @@
+# ============================================================================
+# Workflow: Auto-Tag on Merge
+# ============================================================================
+# Creates a new Git tag when a version bump is detected in a config file
+# (e.g., package.json, pyproject.toml, Cargo.toml) on push to main.
+#
+# Portability: 🔧 Configurable
+#   - Edit VERSION_FILE and the jq/regex to match your project's version source.
+# ============================================================================
+
+name: Auto-Tag on Merge
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch: # Manual trigger — tags current version if untagged
+
+jobs:
+  auto-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Need full history for tag comparison
+
+      - name: Detect Version and Tag
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+            const path = require('path');
+
+            // ── Configuration ─────────────────────────────────────────
+            // Supported version files (checked in order, first match wins)
+            const VERSION_FILES = [
+              { file: 'package.json',    extract: (c) => JSON.parse(c).version },
+              { file: 'pyproject.toml',  extract: (c) => c.match(/version\s*=\s*"([^"]+)"/)?.[1] },
+              { file: 'Cargo.toml',      extract: (c) => c.match(/version\s*=\s*"([^"]+)"/)?.[1] },
+              { file: 'VERSION',         extract: (c) => c.trim() },
+            ];
+            // ──────────────────────────────────────────────────────────
+
+            // Find and read the version file
+            let version = null;
+            let versionFile = null;
+
+            for (const { file, extract } of VERSION_FILES) {
+              const fullPath = path.join(process.env.GITHUB_WORKSPACE, file);
+              if (fs.existsSync(fullPath)) {
+                const content = fs.readFileSync(fullPath, 'utf8');
+                version = extract(content);
+                versionFile = file;
+                break;
+              }
+            }
+
+            if (!version) {
+              console.log("No version file found. Skipping.");
+              return;
+            }
+
+            // Normalize: ensure version starts with 'v'
+            const tag = version.startsWith('v') ? version : `v${version}`;
+            console.log(`Detected version: ${version} (from ${versionFile}) → tag: ${tag}`);
+
+            // Check if this tag already exists
+            try {
+              const { data: ref } = await github.rest.git.getRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${tag}`
+              });
+              console.log(`Tag ${tag} already exists. Skipping.`);
+              return;
+            } catch (e) {
+              if (e.status !== 404) throw e;
+              // 404 means tag doesn't exist — proceed
+            }
+
+            // Create the tag
+            const sha = context.sha || execSync('git rev-parse HEAD').toString().trim();
+
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${tag}`,
+              sha: sha
+            });
+
+            console.log(`✅ Created tag ${tag} at ${sha.substring(0, 7)}`);

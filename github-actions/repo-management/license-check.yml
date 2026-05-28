@@ -1,0 +1,42 @@
+# ============================================================================
+# Workflow: License Compliance Check
+# ============================================================================
+# Scans dependencies for incompatible licenses. Fails if a restrictive
+# license (e.g., GPL) is found in a permissively-licensed project.
+#
+# Uses the dependency-review-action's built-in license checking.
+#
+# Portability: 🔧 Configurable
+#   - Edit the `deny-licenses` or `allow-licenses` list for your project.
+# ============================================================================
+
+name: License Compliance Check
+
+on:
+  pull_request:
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  license-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check Dependency Licenses
+        uses: actions/dependency-review-action@v4
+        with:
+          # ── License Configuration ────────────────────────────────
+          # Option A: Deny specific licenses (blocklist approach)
+          deny-licenses: GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, GPL-3.0-or-later, AGPL-3.0-only, AGPL-3.0-or-later
+
+          # Option B: Only allow specific licenses (allowlist approach)
+          # Uncomment below and comment out deny-licenses above to use.
+          # allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Unlicense
+
+          # Don't fail on vulnerability findings (that's handled by dependency-review.yml)
+          fail-on-severity: critical
+          comment-summary-in-pr: always

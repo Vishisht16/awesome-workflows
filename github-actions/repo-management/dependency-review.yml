@@ -1,0 +1,35 @@
+# ============================================================================
+# Workflow: Dependency Review
+# ============================================================================
+# Reviews dependency changes in PRs and fails if any newly added dependency
+# has known vulnerabilities. Uses GitHub's advisory database.
+#
+# Portability: ✅ Drop-in
+#   - Works for npm, pip, Maven, Go modules, Cargo, etc.
+# ============================================================================
+
+name: Dependency Review
+
+on:
+  pull_request:
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Fail on vulnerabilities of these severities
+          fail-on-severity: moderate
+          # Comment on the PR with a summary of findings
+          comment-summary-in-pr: always
+          # Deny specific licenses (uncomment and customize)
+          # deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0

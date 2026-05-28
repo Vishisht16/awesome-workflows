@@ -1,0 +1,70 @@
+# ============================================================================
+# Workflow: Release Drafter
+# ============================================================================
+# Automatically drafts GitHub Releases by categorizing merged PRs by their
+# labels into a formatted changelog. Continuously updates the draft as
+# PRs are merged.
+#
+# Requires a `.github/release-drafter.yml` config file (see below).
+#
+# Portability: 🔧 Configurable
+#   - Edit `.github/release-drafter.yml` to define label categories and
+#     version resolution strategy.
+# ============================================================================
+
+name: Release Drafter
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch: # Manual trigger — refreshes the draft
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  update-release-draft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Draft Release
+        uses: release-drafter/release-drafter@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ============================================================================
+# REQUIRED: Create `.github/release-drafter.yml` in your repo with:
+# ============================================================================
+#
+# name-template: 'v$RESOLVED_VERSION'
+# tag-template: 'v$RESOLVED_VERSION'
+#
+# categories:
+#   - title: '🚀 Features'
+#     labels: ['enhancement', 'feature']
+#   - title: '🐛 Bug Fixes'
+#     labels: ['bug', 'fix']
+#   - title: '📖 Documentation'
+#     labels: ['documentation', 'docs']
+#   - title: '🧹 Maintenance'
+#     labels: ['chore', 'dependencies', 'ci/cd']
+#
+# change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+# change-title-escapes: '\<*_&'
+#
+# version-resolver:
+#   major:
+#     labels: ['major', 'breaking']
+#   minor:
+#     labels: ['enhancement', 'feature']
+#   patch:
+#     labels: ['bug', 'fix', 'documentation', 'chore']
+#   default: patch
+#
+# template: |
+#   ## Changes
+#   $CHANGES
+#
+#   ## Contributors
+#   $CONTRIBUTORS
+# ============================================================================

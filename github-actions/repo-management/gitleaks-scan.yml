@@ -1,0 +1,34 @@
+# ============================================================================
+# Workflow: Secret Leak Scanner (Gitleaks)
+# ============================================================================
+# Scans every PR and push for accidentally committed secrets, API keys,
+# tokens, and credentials using Gitleaks.
+#
+# Portability: ✅ Drop-in
+#   - Works as-is. Optionally add a `.gitleaks.toml` for custom allowlists.
+# ============================================================================
+
+name: Secret Leak Scanner
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch: # Manual trigger — full repo scan
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

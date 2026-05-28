@@ -1,0 +1,144 @@
+# ============================================================================
+# Workflow: CODEOWNERS Validator
+# ============================================================================
+# Validates that the CODEOWNERS file references only existing users/teams
+# and has no syntax errors. Runs only when CODEOWNERS is modified.
+#
+# Portability: ✅ Drop-in
+# ============================================================================
+
+name: CODEOWNERS Validator
+
+on:
+  pull_request:
+    paths:
+      - 'CODEOWNERS'
+      - '.github/CODEOWNERS'
+      - 'docs/CODEOWNERS'
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  validate-codeowners:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate CODEOWNERS
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Find the CODEOWNERS file
+            const candidates = ['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS'];
+            let codeownersPath = null;
+            let content = null;
+
+            for (const candidate of candidates) {
+              const fullPath = path.join(process.env.GITHUB_WORKSPACE, candidate);
+              if (fs.existsSync(fullPath)) {
+                codeownersPath = candidate;
+                content = fs.readFileSync(fullPath, 'utf8');
+                break;
+              }
+            }
+
+            if (!content) {
+              console.log("No CODEOWNERS file found. Skipping validation.");
+              return;
+            }
+
+            console.log(`Validating ${codeownersPath}...`);
+            const lines = content.split('\n');
+            const errors = [];
+            const warnings = [];
+            const mentionedUsers = new Set();
+
+            for (let i = 0; i < lines.length; i++) {
+              const lineNum = i + 1;
+              const line = lines[i].trim();
+
+              // Skip empty lines and comments
+              if (!line || line.startsWith('#')) continue;
+
+              const parts = line.split(/\s+/);
+
+              // Must have at least a pattern and one owner
+              if (parts.length < 2) {
+                errors.push(`Line ${lineNum}: Pattern \`${parts[0]}\` has no owners assigned.`);
+                continue;
+              }
+
+              // Validate each owner
+              for (let j = 1; j < parts.length; j++) {
+                const owner = parts[j];
+                if (owner.startsWith('#')) break; // inline comment
+
+                if (!owner.startsWith('@') && !owner.includes('@')) {
+                  errors.push(`Line ${lineNum}: \`${owner}\` is not a valid owner (must be @user, @org/team, or email).`);
+                } else if (owner.startsWith('@')) {
+                  mentionedUsers.add(owner);
+                }
+              }
+            }
+
+            // Verify mentioned users/teams exist
+            for (const mention of mentionedUsers) {
+              const clean = mention.substring(1); // remove @
+
+              if (clean.includes('/')) {
+                // It's an org/team reference
+                const [org, team] = clean.split('/');
+                try {
+                  await github.rest.teams.getByName({ org, team_slug: team });
+                } catch {
+                  warnings.push(`\`${mention}\` — team may not exist or is not accessible.`);
+                }
+              } else {
+                // It's a user reference
+                try {
+                  await github.rest.users.getByUsername({ username: clean });
+                } catch {
+                  errors.push(`\`${mention}\` — user does not exist on GitHub.`);
+                }
+              }
+            }
+
+            // Report results
+            if (errors.length === 0 && warnings.length === 0) {
+              console.log(`✅ CODEOWNERS validation passed. ${mentionedUsers.size} owner(s) verified.`);
+              return;
+            }
+
+            const parts = [`### CODEOWNERS Validation Report\n`];
+
+            if (errors.length > 0) {
+              parts.push(`**❌ Errors (${errors.length}):**`);
+              errors.forEach(e => parts.push(`- ${e}`));
+              parts.push('');
+            }
+
+            if (warnings.length > 0) {
+              parts.push(`**⚠️ Warnings (${warnings.length}):**`);
+              warnings.forEach(w => parts.push(`- ${w}`));
+              parts.push('');
+            }
+
+            // Comment on PR if in PR context
+            if (context.payload.pull_request) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: parts.join('\n')
+              });
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(`CODEOWNERS has ${errors.length} error(s).`);
+            }

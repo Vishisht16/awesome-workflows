@@ -1,0 +1,50 @@
+# ============================================================================
+# Workflow: Auto-Merge Dependabot PRs
+# ============================================================================
+# Automatically merges Dependabot PRs for patch and minor version bumps
+# after all CI checks pass. Major version bumps require manual review.
+#
+# Prerequisites:
+#   - "Allow auto-merge" must be enabled in repo Settings > General.
+#   - Branch protection rules with required status checks should be set.
+#
+# Portability: 🔧 Configurable
+#   - Change the `if` condition to restrict to patch-only if desired.
+# ============================================================================
+
+name: Auto-Merge Dependabot PRs
+
+on:
+  pull_request:
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Fetch Dependabot Metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auto-merge patch and minor updates
+        if: >
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log skipped major update
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        run: |
+          echo "⚠️ Major version bump detected. Skipping auto-merge."
+          echo "PR: ${{ github.event.pull_request.html_url }}"
+          echo "Dependency: ${{ steps.metadata.outputs.dependency-names }}"
+          echo "Update: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}"

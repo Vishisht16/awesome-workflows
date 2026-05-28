@@ -1,0 +1,223 @@
+# ============================================================================
+# Workflow: AI Content Detector
+# ============================================================================
+# Reviews PR/issue descriptions and comments for signs of AI-generated
+# content (excessive emojis, em dashes, certain phrases). If detected,
+# posts a gentle advisory to double-check the content for accuracy.
+#
+# This is NOT a hard block — it's an advisory that helps maintainers
+# and authors verify AI-assisted contributions are correct.
+#
+# Manual dispatch: Reviews all open issues and PRs for AI-generated content.
+#
+# Portability: 🔧 Configurable
+#   - Adjust EMOJI_THRESHOLD, EM_DASH_THRESHOLD, and PHRASE_PATTERNS.
+# ============================================================================
+
+name: AI Content Detector
+
+on:
+  issues:
+    types: [opened, edited]
+  pull_request:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+  workflow_dispatch: # Manual trigger — reviews all open issues and PRs
+
+jobs:
+  detect-ai-content:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check for AI-Generated Content
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // ── Configuration ─────────────────────────────────────────
+            // Minimum thresholds to trigger the advisory
+            const EMOJI_THRESHOLD = 5;        // Number of emojis in the text
+            const EM_DASH_THRESHOLD = 3;      // Number of em dashes (—) in the text
+            const PHRASE_THRESHOLD = 2;        // Number of AI-ish phrases found
+            const SCORE_THRESHOLD = 6;         // Combined score to trigger advisory
+            // Individual weights
+            const EMOJI_WEIGHT = 1;            // Points per emoji above threshold
+            const EM_DASH_WEIGHT = 2;          // Points per em dash above threshold
+            const PHRASE_WEIGHT = 3;           // Points per AI phrase found
+
+            // Common AI-generated phrases
+            const PHRASE_PATTERNS = [
+              "i'd be happy to",
+              "here's a comprehensive",
+              "here's a detailed",
+              "let me break this down",
+              "great question",
+              "absolutely!",
+              "certainly!",
+              "here's how you can",
+              "feel free to",
+              "hope this helps",
+              "don't hesitate to",
+              "i hope this clarifies",
+              "happy to help",
+              "as an ai",
+              "i'm an ai",
+              "leveraging",
+              "delve into",
+              "it's worth noting that",
+              "in summary,",
+              "to summarize,",
+              "in conclusion,",
+            ];
+
+            // Emoji detection regex (covers most common emoji ranges)
+            const EMOJI_REGEX = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1FA00}-\u{1FA9F}\u{200D}\u{20E3}]/gu;
+
+            // ── Bot check label to avoid duplicate alerts ─────────────
+            const ADVISORY_MARKER = "<!-- ai-content-check -->";
+
+            // ── Core analysis function ────────────────────────────────
+            function analyzeText(text) {
+              if (!text || text.trim().length === 0) return null;
+
+              const signals = [];
+              let score = 0;
+
+              // Count emojis
+              const emojis = text.match(EMOJI_REGEX) || [];
+              if (emojis.length >= EMOJI_THRESHOLD) {
+                const excess = emojis.length - EMOJI_THRESHOLD + 1;
+                score += excess * EMOJI_WEIGHT;
+                signals.push(`${emojis.length} emojis detected`);
+              }
+
+              // Count em dashes
+              const emDashes = (text.match(/—/g) || []).length;
+              if (emDashes >= EM_DASH_THRESHOLD) {
+                const excess = emDashes - EM_DASH_THRESHOLD + 1;
+                score += excess * EM_DASH_WEIGHT;
+                signals.push(`${emDashes} em dashes (—) detected`);
+              }
+
+              // Check for AI-ish phrases
+              const textLower = text.toLowerCase();
+              const matched = PHRASE_PATTERNS.filter(p => textLower.includes(p));
+              if (matched.length >= PHRASE_THRESHOLD) {
+                score += matched.length * PHRASE_WEIGHT;
+                signals.push(`AI-associated phrases: "${matched.join('", "')}"`);
+              }
+
+              return { score, signals };
+            }
+
+            // ── Advisory comment function ─────────────────────────────
+            async function postAdvisory(itemNumber, author, signals, isComment) {
+              const target = isComment ? "comment" : "description";
+              const body = [
+                ADVISORY_MARKER,
+                `🤖 **AI Content Advisory**`,
+                ``,
+                `This ${target} has signals that suggest it may be AI-generated:`,
+                ...signals.map(s => `- ${s}`),
+                ``,
+                `**To the maintainer:** Please review this ${target} carefully for accuracy.`,
+                ``,
+                `**@${author}:** If any part of this ${target} is inaccurate or ` +
+                `doesn't reflect your intent, please let the maintainers know ` +
+                `by replying here.`,
+                ``,
+                `*This is an automated heuristic check — false positives are possible. ` +
+                `AI-assisted contributions are welcome as long as they are accurate.*`
+              ].join("\n");
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: itemNumber,
+                body: body
+              });
+            }
+
+            // ── Check if we already posted an advisory ────────────────
+            async function hasExistingAdvisory(itemNumber) {
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: itemNumber,
+                per_page: 30
+              });
+              return comments.data.some(c => c.body.includes(ADVISORY_MARKER));
+            }
+
+            // ── Process a single item ─────────────────────────────────
+            async function processItem(number, text, author, isComment) {
+              const result = analyzeText(text);
+              if (!result || result.score < SCORE_THRESHOLD) {
+                console.log(`#${number}: Score ${result?.score || 0}. Below threshold.`);
+                return;
+              }
+
+              // Skip if we already posted an advisory (for non-comment items)
+              if (!isComment) {
+                const exists = await hasExistingAdvisory(number);
+                if (exists) {
+                  console.log(`#${number}: Advisory already posted. Skipping.`);
+                  return;
+                }
+              }
+
+              console.log(`#${number}: Score ${result.score}. Posting advisory.`);
+              await postAdvisory(number, author, result.signals, isComment);
+            }
+
+            // ── Dispatch mode: review all open issues & PRs ───────────
+            if (context.eventName === "workflow_dispatch") {
+              console.log("Manual dispatch: reviewing all open issues and PRs...");
+
+              const items = await github.paginate(
+                github.rest.issues.listForRepo,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: "open",
+                  per_page: 100
+                }
+              );
+
+              console.log(`Found ${items.length} open item(s) to review.`);
+              for (const item of items) {
+                await processItem(
+                  item.number,
+                  `${item.title || ""} ${item.body || ""}`,
+                  item.user.login,
+                  false
+                );
+              }
+              return;
+            }
+
+            // ── Event mode: issue_comment ─────────────────────────────
+            if (context.eventName === "issue_comment") {
+              const comment = context.payload.comment;
+              // Don't check bot comments
+              if (comment.user.type === "Bot") return;
+              await processItem(
+                context.payload.issue.number,
+                comment.body,
+                comment.user.login,
+                true
+              );
+              return;
+            }
+
+            // ── Event mode: issue or PR opened/edited ─────────────────
+            const item = context.payload.issue || context.payload.pull_request;
+            if (item.user.type === "Bot") return;
+            await processItem(
+              item.number,
+              `${item.title || ""} ${item.body || ""}`,
+              item.user.login,
+              false
+            );
