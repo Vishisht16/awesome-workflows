@@ -1,0 +1,112 @@
+# ============================================================================
+# Workflow: Auto-Close Spam Issues
+# ============================================================================
+# Detects and closes issues that are likely spam based on heuristics:
+#   - Empty or extremely short body
+#   - Excessive links / promotional patterns
+#   - Known spam phrases
+#
+# Portability: ✅ Drop-in
+# ============================================================================
+
+name: Auto-Close Spam Issues
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  spam-check:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Detect and Close Spam Issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title || "";
+            const body = issue.body || "";
+            const author = issue.user.login;
+
+            const MIN_BODY_LENGTH = 10;
+            const MAX_URLS = 5;
+            const SPAM_THRESHOLD = 4;
+
+            const SPAM_PATTERNS = [
+              "buy now", "click here", "free money", "earn money",
+              "make money online", "work from home", "casino", "lottery",
+              "viagra", "cryptocurrency trading", "whatsapp",
+              "telegram group", "join our", "limited offer", "act now",
+              "special promotion", "100% free", "order now",
+              "customer support number", "call toll free",
+            ];
+
+            let spamScore = 0;
+            const reasons = [];
+
+            // Check 1: Empty or near-empty body
+            if (body.trim().length < MIN_BODY_LENGTH) {
+              spamScore += 2;
+              reasons.push("Issue body is empty or extremely short");
+            }
+
+            // Check 2: Very short title
+            if (title.trim().length < 3) {
+              spamScore += 2;
+              reasons.push("Issue title is suspiciously short");
+            }
+
+            // Check 3: Excessive URLs
+            const urlMatches = body.match(/https?:\/\/[^\s)>\]]+/g) || [];
+            if (urlMatches.length > MAX_URLS) {
+              spamScore += 3;
+              reasons.push(`Body contains ${urlMatches.length} URLs`);
+            }
+
+            // Check 4: Known spam phrases
+            const textLower = `${title} ${body}`.toLowerCase();
+            const matchedPhrases = SPAM_PATTERNS.filter(p => textLower.includes(p));
+            if (matchedPhrases.length > 0) {
+              spamScore += matchedPhrases.length * 2;
+              reasons.push(`Matched spam phrases: "${matchedPhrases.join('", "')}"`);
+            }
+
+            // Check 5: Body is mostly URLs
+            if (body.trim().length > 0) {
+              const urlChars = urlMatches.reduce((s, u) => s + u.length, 0);
+              if (urlChars / body.trim().length > 0.7) {
+                spamScore += 2;
+                reasons.push("Body is mostly URLs");
+              }
+            }
+
+            if (spamScore < SPAM_THRESHOLD) {
+              console.log(`Issue #${issue.number}: Score ${spamScore}. Clean.`);
+              return;
+            }
+
+            console.log(`Issue #${issue.number}: Score ${spamScore}. Spam.`);
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ["spam"]
+            });
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: "🚫 This issue has been automatically flagged and closed as spam.\n\nIf this was a mistake, please contact a maintainer to reopen it."
+            });
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              state: "closed",
+              state_reason: "not_planned"
+            });

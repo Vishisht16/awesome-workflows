@@ -1,0 +1,50 @@
+# ============================================================================
+# Workflow: Lock Closed Threads
+# ============================================================================
+# Locks issues and PRs that have been closed for a specified number of days
+# to prevent "necro-bumping" on old threads. Forces users to open new,
+# trackable issues instead of reviving stale conversations.
+#
+# Portability: 🔧 Configurable
+#   - Adjust `issue-inactive-days` and `pr-inactive-days` to your preference.
+#   - Customize the lock comments.
+# ============================================================================
+
+name: Lock Closed Threads
+
+on:
+  schedule:
+    # Runs every day at 05:00 UTC
+    - cron: '0 5 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lock Stale Closed Threads
+        uses: dessant/lock-threads@v5
+        with:
+          # ── Issue Settings ───────────────────────────────────────────
+          issue-inactive-days: 30
+          issue-lock-reason: 'resolved'
+          issue-comment: >
+            🔒 This issue has been automatically locked since there has been
+            no activity for 30 days after it was closed. Please open a new
+            issue if you have a related problem or question.
+
+          # ── PR Settings ──────────────────────────────────────────────
+          pr-inactive-days: 30
+          pr-lock-reason: 'resolved'
+          pr-comment: >
+            🔒 This pull request has been automatically locked since there
+            has been no activity for 30 days after it was closed. Please
+            open a new PR if you'd like to continue this work.
+
+          # ── General ──────────────────────────────────────────────────
+          # Process a limited number per run to avoid rate limits
+          process-only: ''

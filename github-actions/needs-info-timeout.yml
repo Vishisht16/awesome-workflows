@@ -1,0 +1,136 @@
+# ============================================================================
+# Workflow: Needs Info Timeout
+# ============================================================================
+# When an issue has the `needs-info` label and the original author has not
+# responded within a configurable number of days, this workflow auto-closes
+# the issue with a polite comment.
+#
+# Portability: 🔧 Configurable
+#   - Adjust LABEL_NAME to match whatever label you use.
+#   - Adjust TIMEOUT_DAYS for your response window.
+# ============================================================================
+
+name: Needs Info Timeout
+
+on:
+  schedule:
+    # Runs every day at 04:00 UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  close-needs-info:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Close Stale Needs-Info Issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // ── Configuration ─────────────────────────────────────────
+            const LABEL_NAME = "needs-info";
+            const TIMEOUT_DAYS = 14;
+            // ──────────────────────────────────────────────────────────
+
+            const now = new Date();
+            const timeoutMs = TIMEOUT_DAYS * 24 * 60 * 60 * 1000;
+
+            // Fetch all open issues with the needs-info label
+            const issues = await github.paginate(
+              github.rest.issues.listForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: "open",
+                labels: LABEL_NAME,
+                per_page: 100
+              }
+            );
+
+            console.log(`Found ${issues.length} open issue(s) with "${LABEL_NAME}" label.`);
+
+            for (const issue of issues) {
+              // Skip pull requests (GitHub API returns PRs as issues too)
+              if (issue.pull_request) continue;
+
+              const issueAuthor = issue.user.login;
+
+              // Fetch comments on this issue to find the most recent one
+              // from the issue author
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  per_page: 100
+                }
+              );
+
+              // Find when the needs-info label was most recently applied
+              const events = await github.paginate(
+                github.rest.issues.listEvents,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  per_page: 100
+                }
+              );
+
+              // Find the most recent "labeled" event for needs-info
+              const labeledEvents = events
+                .filter(e => e.event === "labeled" && e.label?.name === LABEL_NAME)
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+              if (labeledEvents.length === 0) continue;
+
+              const labeledAt = new Date(labeledEvents[0].created_at);
+
+              // Check if the author replied AFTER the label was applied
+              const authorRepliedAfterLabel = comments.some(comment => {
+                return (
+                  comment.user.login === issueAuthor &&
+                  new Date(comment.created_at) > labeledAt
+                );
+              });
+
+              if (authorRepliedAfterLabel) {
+                console.log(`Issue #${issue.number}: Author replied after labeling. Skipping.`);
+                continue;
+              }
+
+              // Check if enough time has passed since the label was applied
+              const elapsed = now - labeledAt;
+              if (elapsed < timeoutMs) {
+                const daysLeft = Math.ceil((timeoutMs - elapsed) / (24 * 60 * 60 * 1000));
+                console.log(`Issue #${issue.number}: ${daysLeft} day(s) remaining before timeout.`);
+                continue;
+              }
+
+              // ── Timeout Reached: Comment and Close ────────────────────
+              console.log(`Issue #${issue.number}: Timed out. Closing.`);
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: [
+                  `@${issueAuthor} This issue has been automatically closed `,
+                  `because the requested information was not provided within `,
+                  `${TIMEOUT_DAYS} days.\n\n`,
+                  `If you have the needed details, feel free to reopen this `,
+                  `issue or create a new one with the requested information. `,
+                  `Thank you! 🙏`
+                ].join("")
+              });
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: "closed",
+                state_reason: "not_planned"
+              });
+            }

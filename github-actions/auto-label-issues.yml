@@ -1,0 +1,77 @@
+# ============================================================================
+# Workflow: Auto-Label Issues by Keywords
+# ============================================================================
+# Scans new/edited issue titles and bodies for keywords and automatically
+# applies matching labels. Saves maintainers from manual triage.
+#
+# Portability: 🔧 Configurable
+#   - Edit the `LABEL_RULES` object to match your repository's label taxonomy.
+#   - Each rule maps a label name to an array of trigger keywords.
+# ============================================================================
+
+name: Auto-Label Issues by Keywords
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  auto-label:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Apply Labels Based on Keywords
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = (issue.title || "").toLowerCase();
+            const body = (issue.body || "").toLowerCase();
+            const text = `${title} ${body}`;
+
+            // ── Keyword-to-Label Mapping ──────────────────────────────
+            // Customize this object for your repository.
+            // Keys are label names, values are arrays of trigger keywords.
+            const LABEL_RULES = {
+              "bug": ["bug", "error", "broken", "crash", "exception", "traceback", "not working", "fails", "failure", "fault"],
+              "enhancement": ["feature", "enhancement", "request", "improve", "suggestion", "idea", "proposal"],
+              "documentation": ["docs", "documentation", "readme", "typo", "spelling", "grammar", "javadoc", "docstring"],
+              "question": ["question", "how to", "how do", "is there a way", "help", "guidance", "confused"],
+              "performance": ["slow", "performance", "latency", "speed", "memory", "optimize", "bottleneck"],
+              "security": ["security", "vulnerability", "cve", "exploit", "injection", "xss", "csrf"],
+              "ui/ux": ["ui", "ux", "design", "layout", "responsive", "accessibility", "a11y", "dark mode"],
+              "dependencies": ["dependency", "dependencies", "upgrade", "update", "version", "outdated", "deprecated"],
+            };
+
+            // ── Label Matching Logic ──────────────────────────────────
+            const labelsToAdd = [];
+            const existingLabels = issue.labels.map(l => l.name.toLowerCase());
+
+            for (const [label, keywords] of Object.entries(LABEL_RULES)) {
+              // Skip if the issue already has this label
+              if (existingLabels.includes(label.toLowerCase())) continue;
+
+              // Check if any keyword is found in the issue text
+              const matched = keywords.some(keyword => text.includes(keyword));
+              if (matched) {
+                labelsToAdd.push(label);
+              }
+            }
+
+            if (labelsToAdd.length === 0) {
+              console.log("No keyword matches found. No labels to add.");
+              return;
+            }
+
+            console.log(`Adding labels: ${labelsToAdd.join(", ")}`);
+
+            // ── Apply Labels ──────────────────────────────────────────
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: labelsToAdd
+            });
+
+            console.log(`Successfully labeled issue #${issue.number}.`);

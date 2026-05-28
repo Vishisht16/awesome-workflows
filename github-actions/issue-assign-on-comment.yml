@@ -1,0 +1,137 @@
+# ============================================================================
+# Workflow: Issue Assigner on Comment
+# ============================================================================
+# Allows contributors to self-assign issues by commenting `/assign`.
+# Optionally limits the maximum number of open assignments per user
+# to prevent hoarding.
+#
+# Supported commands:
+#   /assign     — Assign yourself to the issue
+#   /unassign   — Remove yourself from the issue
+#
+# Portability: 🔧 Configurable
+#   - Adjust MAX_ASSIGNMENTS to limit concurrent assignments per user.
+#   - Set to 0 to disable the limit.
+# ============================================================================
+
+name: Issue Assigner on Comment
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  assign:
+    # Only run on issue comments (not PR comments)
+    if: ${{ !github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Handle /assign and /unassign Commands
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = context.payload.comment;
+            const issue = context.payload.issue;
+            const commenter = comment.user.login;
+            const body = comment.body.trim().toLowerCase();
+
+            // ── Configuration ─────────────────────────────────────────
+            // Max issues a single user can be assigned to at once.
+            // Set to 0 to disable this limit.
+            const MAX_ASSIGNMENTS = 3;
+            // ──────────────────────────────────────────────────────────
+
+            // ── /assign command ───────────────────────────────────────
+            if (body === "/assign" || body.startsWith("/assign ")) {
+              const assignees = issue.assignees.map(a => a.login);
+
+              // Already assigned?
+              if (assignees.includes(commenter)) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `@${commenter} You are already assigned to this issue. 👍`
+                });
+                return;
+              }
+
+              // Check assignment limit
+              if (MAX_ASSIGNMENTS > 0) {
+                // Count how many open issues this user is assigned to
+                const assigned = await github.paginate(
+                  github.rest.issues.listForRepo,
+                  {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    assignee: commenter,
+                    state: "open",
+                    per_page: 100
+                  }
+                );
+
+                // Filter out PRs
+                const assignedIssues = assigned.filter(i => !i.pull_request);
+
+                if (assignedIssues.length >= MAX_ASSIGNMENTS) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    body: `@${commenter} You already have **${assignedIssues.length}** open issue(s) assigned (max: ${MAX_ASSIGNMENTS}). Please complete or unassign from existing issues first.`
+                  });
+                  return;
+                }
+              }
+
+              // Assign the user
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                assignees: [commenter]
+              });
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `✅ @${commenter} has been assigned to this issue. Good luck! 🚀`
+              });
+
+              console.log(`Assigned ${commenter} to issue #${issue.number}.`);
+              return;
+            }
+
+            // ── /unassign command ─────────────────────────────────────
+            if (body === "/unassign" || body.startsWith("/unassign ")) {
+              const assignees = issue.assignees.map(a => a.login);
+
+              if (!assignees.includes(commenter)) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `@${commenter} You are not currently assigned to this issue.`
+                });
+                return;
+              }
+
+              await github.rest.issues.removeAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                assignees: [commenter]
+              });
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `👋 @${commenter} has been unassigned from this issue.`
+              });
+
+              console.log(`Unassigned ${commenter} from issue #${issue.number}.`);
+            }
